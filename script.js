@@ -1,6 +1,7 @@
+// URL de tu Google Apps Script Web App
 const API_URL = 'https://script.google.com/macros/s/AKfycbzzM6_gWScIgfDKSP37d725JJzYRk71s6Pr50W1wIHTJVOL_BX-IFHkkrWyH6FAJ1QIDQ/exec';
 
-// Referencias a elementos DOM
+// Referencias a elementos del DOM
 const noListScreen = document.getElementById('noListScreen');
 const listScreen = document.getElementById('listScreen');
 const adminPasswordInput = document.getElementById('adminPassword');
@@ -20,12 +21,12 @@ const confirmExitBtn = document.getElementById('confirmExitBtn');
 let currentPlayerToRemove = null;
 let adminPassword = '';
 
-// Verifica lista
+// Verificar estado de la lista al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
     checkListStatus();
 });
 
-// Llamar a  API
+// Función para hacer llamadas a la API
 async function callAPI(action, params = {}) {
     try {
         const urlParams = new URLSearchParams({
@@ -38,6 +39,7 @@ async function callAPI(action, params = {}) {
             mode: 'no-cors'
         });
         
+        // Nota: no-cors no nos permite leer la respuesta, pero funciona para Google Apps Script
         return { success: true };
     } catch (error) {
         console.error('Error calling API:', error);
@@ -45,6 +47,7 @@ async function callAPI(action, params = {}) {
     }
 }
 
+// Función alternativa para leer datos (usamos doGet que sí permite CORS)
 async function getData(action) {
     try {
         const response = await fetch(`${API_URL}?action=${action}`);
@@ -56,7 +59,7 @@ async function getData(action) {
     }
 }
 
-// Verifica si hay lista
+// Verificar si hay lista activa
 async function checkListStatus() {
     const data = await getData('getListStatus');
     
@@ -75,19 +78,19 @@ async function checkListStatus() {
     }
 }
 
-// Pantalla sin lista
+// Mostrar pantalla sin lista
 function showNoListScreen() {
     noListScreen.classList.remove('hidden');
     listScreen.classList.add('hidden');
 }
 
-// Pantalla con lista activa
+// Mostrar pantalla con lista activa
 function showListScreen() {
     noListScreen.classList.add('hidden');
     listScreen.classList.remove('hidden');
 }
 
-// administrador
+// Acceso de administrador
 accessBtn.addEventListener('click', async function() {
     const password = adminPasswordInput.value.trim();
     
@@ -99,12 +102,12 @@ accessBtn.addEventListener('click', async function() {
             startAutoRefresh();
         }
     } else {
-        alert('Contraseña incorrecta');
+        alert('❌ Contraseña incorrecta');
         adminPasswordInput.value = '';
     }
 });
 
-// Cerrar lista
+// Cerrar lista (solo admin)
 closeListBtn.addEventListener('click', async function() {
     if (confirm('¿Estás segura de que quieres cerrar la lista?')) {
         const result = await callAPI('closeList');
@@ -135,6 +138,7 @@ async function addPlayer() {
         return;
     }
     
+    // Usamos un enfoque diferente para evitar problemas CORS
     try {
         const response = await fetch(`${API_URL}?action=addPlayer&playerName=${encodeURIComponent(playerName)}`);
         const result = await response.json();
@@ -142,12 +146,13 @@ async function addPlayer() {
         if (result.success) {
             playerNameInput.value = '';
             playerNameInput.focus();
-            loadPlayers();
+            loadPlayers(); // Recargar lista
         } else if (result.error) {
             alert(result.error);
         }
     } catch (error) {
         console.error('Error adding player:', error);
+        // Intentamos de todas formas recargar la lista
         loadPlayers();
     }
 }
@@ -161,14 +166,14 @@ async function loadPlayers() {
     }
 }
 
-// Renderiza jugadores en las listas
+// Renderizar jugadores en las listas
 function renderPlayers(players) {
     attendingList.innerHTML = '';
     waitingList.innerHTML = '';
     
     const MAX_PLAYERS = 12;
     
-    // Actualiza contador
+    // Actualizar contador
     const attendingCount = Math.min(players.length, MAX_PLAYERS);
     listCount.textContent = `${attendingCount}/${MAX_PLAYERS}`;
     
@@ -180,10 +185,12 @@ function renderPlayers(players) {
             ${player}
         `;
         
+        // Agregar evento para mostrar modal de salida
         playerElement.addEventListener('click', () => {
             showExitModal(player);
         });
         
+        // Agregar a lista correspondiente
         if (index < MAX_PLAYERS) {
             attendingList.appendChild(playerElement);
         } else {
@@ -191,7 +198,7 @@ function renderPlayers(players) {
         }
     });
     
-    // Espacios vacíos en lista principal
+    // Mostrar espacios vacíos en lista principal
     for (let i = players.length; i < MAX_PLAYERS; i++) {
         const emptySlot = document.createElement('div');
         emptySlot.className = 'player-item';
@@ -205,7 +212,7 @@ function renderPlayers(players) {
     }
 }
 
-// Salir de lista
+// Mostrar modal para salir de lista
 function showExitModal(playerName) {
     currentPlayerToRemove = playerName;
     playerToRemove.textContent = playerName;
@@ -222,7 +229,7 @@ function hideExitModal() {
 cancelExitBtn.addEventListener('click', hideExitModal);
 confirmExitBtn.addEventListener('click', removePlayer);
 
-// Remover jugador de lista
+// Remover jugador de la lista
 async function removePlayer() {
     if (!currentPlayerToRemove) return;
     
@@ -232,7 +239,7 @@ async function removePlayer() {
         
         if (result.success) {
             hideExitModal();
-            loadPlayers();
+            loadPlayers(); // Recargar lista
         } else if (result.error) {
             alert(result.error);
             hideExitModal();
@@ -244,13 +251,14 @@ async function removePlayer() {
     }
 }
 
-// Auto-refrescar cada 1 segundos
+// Auto-refrescar la lista cada 5 segundos
 function startAutoRefresh() {
     setInterval(() => {
         loadPlayers();
-    }, 1000);
+    }, 5000);
 }
 
+// Cerrar modal haciendo clic fuera
 exitModal.addEventListener('click', function(e) {
     if (e.target === exitModal) {
         hideExitModal();
