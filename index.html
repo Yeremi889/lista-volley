@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista Volley - Mejengas</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Pantalla sin lista activa -->
+        <div id="noListScreen" class="screen">
+            <header>
+                <h1>🏐 Lista Volley</h1>
+                <p>Mejengas - Primeros 12 jugadores</p>
+            </header>
+            
+            <div class="message">
+                <p>Actualmente no hay lista para mejenguiar...</p>
+                <p>...a menos que sepas lo que va escrito aquí:</p>
+            </div>
+            
+            <div class="admin-access">
+                <input type="password" id="adminPassword" placeholder="Contraseña secreta">
+                <button id="accessBtn">ACCEDER 🗝️</button>
+            </div>
+        </div>
+
+        <!-- Pantalla con lista activa -->
+        <div id="listScreen" class="screen hidden">
+            <header>
+                <h1>🏐 Lista Volley</h1>
+                <div class="list-status">
+                    <span id="listCount">0/12</span>
+                    <button id="closeListBtn" class="admin-btn">Cerrar Lista</button>
+                </div>
+            </header>
+
+            <!-- Formulario para apuntar jugadores -->
+            <div class="add-player">
+                <input type="text" id="playerNameInput" placeholder="Nombre del jugador" maxlength="30">
+                <button id="addPlayerBtn">Enlistar ➕</button>
+            </div>
+
+            <!-- Lista de jugadores -->
+            <div class="lists-container">
+                <div class="list-section">
+                    <h2>✅ Van a jugar</h2>
+                    <div id="attendingList" class="players-list">
+                        <!-- Se llena dinámicamente -->
+                    </div>
+                </div>
+
+                <div class="list-section">
+                    <h2>⏳ Lista de espera</h2>
+                    <div id="waitingList" class="players-list">
+                        <!-- Se llena dinámicamente -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para confirmar salida -->
+        <div id="exitModal" class="modal hidden">
+            <div class="modal-content">
+                <h3>¿Salir de la lista?</h3>
+                <p>Quieres quitar a: <span id="playerToRemove"></span></p>
+                <div class="modal-buttons">
+                    <button id="cancelExitBtn">Cancelar</button>
+                    <button id="confirmExitBtn">Salir ✅</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
