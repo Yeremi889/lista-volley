@@ -1,62 +1,63 @@
 const { google } = require('googleapis');
 
 exports.handler = async function(event, context) {
-  console.log('=== SHEETS FUNCTION STARTED ===');
+  console.log('Function called:', new Date().toISOString());
   
   try {
-    console.log('1. Verificando variables de entorno...');
-    console.log('GOOGLE_PROJECT_ID:', process.env.GOOGLE_PROJECT_ID ? '✅ Existe' : '❌ Faltante');
-    console.log('GOOGLE_PRIVATE_KEY_ID:', process.env.GOOGLE_PRIVATE_KEY_ID ? '✅ Existe' : '❌ Faltante');
-    console.log('GOOGLE_CLIENT_EMAIL:', process.env.GOOGLE_CLIENT_EMAIL ? '✅ Existe' : '❌ Faltante');
-    console.log('GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? '✅ Existe' : '❌ Faltante');
-    console.log('GOOGLE_PRIVATE_KEY length:', process.env.GOOGLE_PRIVATE_KEY ? process.env.GOOGLE_PRIVATE_KEY.length : '❌ Faltante');
-
-    // Verificar que todas las variables existen
-    if (!process.env.GOOGLE_PROJECT_ID || !process.env.GOOGLE_PRIVATE_KEY_ID || 
-        !process.env.GOOGLE_PRIVATE_KEY || !process.env.GOOGLE_CLIENT_EMAIL || 
-        !process.env.GOOGLE_CLIENT_ID) {
-      throw new Error('Faltan variables de entorno requeridas');
-    }
-
-    console.log('2. Configurando autenticación...');
+    // Configurar auth
     const auth = new google.auth.GoogleAuth({
       credentials: {
         type: "service_account",
         project_id: process.env.GOOGLE_PROJECT_ID,
         private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
         client_id: process.env.GOOGLE_CLIENT_ID,
       },
       scopes: ['https://www.googleapis.com/auth/spreadsheets']
     });
 
-    console.log('3. Creando cliente de Sheets...');
     const sheets = google.sheets({ version: 'v4', auth });
     const SPREADSHEET_ID = '1C-fmkU-RPFzkEd834U4Zb8yJ0CyD0YhhNsJDK1_iziM';
 
-    console.log('4. Parseando request body...');
-    const { action, playerName } = JSON.parse(event.body || '{}');
-    console.log('Action recibida:', action);
+    const { action, playerName, lastTimestamp } = JSON.parse(event.body || '{}');
+    console.log('Action:', action, 'playerName:', playerName);
 
-    // Control de estado de lista (celda B1)
-    if (action === 'getListStatus') {
-      console.log('5. Ejecutando getListStatus...');
-      const result = await sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
-        range: 'B1:B1'
-      });
+    // 1. OBTENER ESTADO CON TIMESTAMP
+    if (action === 'getListStatusWithTimestamp') {
+      const [statusResult, timestampResult] = await Promise.all([
+        sheets.spreadsheets.values.get({
+          spreadsheetId: SPREADSHEET_ID,
+          range: 'B1:B1'
+        }),
+        sheets.spreadsheets.values.get({
+          spreadsheetId: SPREADSHEET_ID,
+          range: 'C1:C1' // Celda para timestamp
+        })
+      ]);
       
-      console.log('6. Resultado de getListStatus:', result.data);
-      const listaAbierta = result.data.values && result.data.values[0] && result.data.values[0][0] === 'ABIERTA';
+      const listaAbierta = statusResult.data.values && 
+                          statusResult.data.values[0] && 
+                          statusResult.data.values[0][0] === 'ABIERTA';
+      
+      const currentTimestamp = timestampResult.data.values && 
+                              timestampResult.data.values[0] && 
+                              timestampResult.data.values[0][0];
+      
+      // Verificar si hay cambios desde la última vez
+      const needsUpdate = !lastTimestamp || currentTimestamp !== lastTimestamp;
       
       return {
         statusCode: 200,
-        body: JSON.stringify({ listaAbierta })
+        body: JSON.stringify({ 
+          listaAbierta, 
+          needsUpdate,
+          lastTimestamp: currentTimestamp 
+        })
       };
     }
 
-    // ... (el resto de las acciones permanecen igual)
+    // 2. ABRIR LISTA
     if (action === 'openList') {
       await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
@@ -67,12 +68,23 @@ exports.handler = async function(event, context) {
         }
       });
 
+      // Actualizar timestamp
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEET_ID,
+        range: 'C1:C1',
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [[new Date().toISOString()]]
+        }
+      });
+
       return {
         statusCode: 200,
         body: JSON.stringify({ success: true })
       };
     }
 
+    // 3. CERRAR LISTA
     if (action === 'closeList') {
       await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
@@ -88,12 +100,23 @@ exports.handler = async function(event, context) {
         range: 'A5:A100'
       });
 
+      // Actualizar timestamp
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEET_ID,
+        range: 'C1:C1',
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [[new Date().toISOString()]]
+        }
+      });
+
       return {
         statusCode: 200,
         body: JSON.stringify({ success: true })
       };
     }
 
+    // 4. OBTENER JUGADORES
     if (action === 'getPlayers') {
       const result = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
@@ -110,7 +133,9 @@ exports.handler = async function(event, context) {
       };
     }
 
+    // 5. AÑADIR JUGADOR
     if (action === 'addPlayer' && playerName) {
+      // Verificar si ya existe
       const currentData = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
         range: 'A5:A100'
@@ -124,12 +149,41 @@ exports.handler = async function(event, context) {
         return { statusCode: 400, body: JSON.stringify({ error: 'Nombre ya existe' }) };
       }
 
+      // Agregar nuevo jugador
       await sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID,
         range: 'A5:A100',
         valueInputOption: 'RAW',
         requestBody: {
           values: [[playerName]]
+        }
+      });
+
+      // ACTUALIZAR TIMESTAMP (IMPORTANTE)
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEET_ID,
+        range: 'C1:C1',
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [[new Date().toISOString()]]
+        }
+      });
+
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ success: true })
+      };
+    }
+
+    // 6. PING UPDATE (para forzar actualizaciones)
+    if (action === 'pingUpdate') {
+      // Solo actualizar timestamp
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEET_ID,
+        range: 'C1:C1',
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [[new Date().toISOString()]]
         }
       });
 
@@ -145,27 +199,10 @@ exports.handler = async function(event, context) {
     };
 
   } catch (error) {
-    console.error('=== ERROR DETALLADO ===');
-    console.error('Mensaje:', error.message);
-    console.error('Stack:', error.stack);
-    console.error('Tipo:', error.name);
-    
-    // Verificar si es error de autenticación
-    if (error.message.includes('invalid_grant') || error.message.includes('unauthorized_client')) {
-      console.error('ERROR: Problema de autenticación con Google Service Account');
-    }
-    
-    if (error.message.includes('notFound')) {
-      console.error('ERROR: Spreadsheet no encontrada - verifica el ID o los permisos');
-    }
-
+    console.error('Error:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ 
-        error: 'Error del servidor',
-        message: error.message,
-        type: error.name
-      })
+      body: JSON.stringify({ error: 'Error del servidor' })
     };
   }
 };

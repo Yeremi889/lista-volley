@@ -21,33 +21,50 @@ const confirmExitBtn = document.getElementById('confirmExitBtn');
 let currentPlayerToRemove = null;
 let players = [];
 let autoRefreshInterval;
+let lastUpdateTimestamp = null;
+let isListOpen = false;
 
 // Al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
     checkListStatus();
-    startAutoRefresh();
+    startSmartRefresh();
 });
 
-// Verificar estado de la lista
+// Verificar estado de la lista CON TIMESTAMP
 async function checkListStatus() {
     try {
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'getListStatus' })
+            body: JSON.stringify({ 
+                action: 'getListStatusWithTimestamp',
+                lastTimestamp: lastUpdateTimestamp 
+            })
         });
+        
+        if (!response.ok) {
+            console.warn('Error en checkListStatus:', response.status);
+            return;
+        }
         
         const data = await response.json();
         
+        // Solo actualizar jugadores si hubo cambios
+        if (data.needsUpdate) {
+            await loadPlayers();
+            lastUpdateTimestamp = data.lastTimestamp;
+        }
+        
+        // Mostrar pantalla correcta
         if (data.listaAbierta) {
+            isListOpen = true;
             showListScreen();
-            loadPlayers();
         } else {
+            isListOpen = false;
             showAccessScreen();
         }
     } catch (error) {
-        console.error('Error:', error);
-        showAccessScreen();
+        console.warn('Error checkListStatus:', error);
     }
 }
 
@@ -76,10 +93,16 @@ async function openListForEveryone() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'openList' })
         });
-        showListScreen();
-        loadPlayers();
+        
+        // Forzar actualización inmediata
+        lastUpdateTimestamp = null;
+        await checkListStatus();
+        
+        alert('✅ Lista abierta - Los jugadores ya pueden apuntarse');
+        
     } catch (error) {
         console.error('Error abriendo lista:', error);
+        alert('Error al abrir lista');
     }
 }
 
@@ -132,8 +155,18 @@ async function addPlayer() {
         
         if (data.success) {
             playerNameInput.value = '';
-            playerNameInput.focus();
+            
+            // Forzar actualización para todos los dispositivos
+            await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'pingUpdate' })
+            });
+            
+            // Actualizar localmente
+            lastUpdateTimestamp = null;
             await loadPlayers();
+            playerNameInput.focus();
         } else if (data.error) {
             alert(data.error);
         }
@@ -156,8 +189,10 @@ clearListBtn.addEventListener('click', async function() {
             const data = await response.json();
             if (data.success) {
                 players = [];
+                lastUpdateTimestamp = null;
                 renderPlayers(players);
                 showAccessScreen();
+                alert('✅ Lista cerrada - Nueva lista lista para usar');
             }
         } catch (error) {
             console.error('Error cerrando lista:', error);
@@ -224,23 +259,34 @@ function hideExitModal() {
 }
 
 cancelExitBtn.addEventListener('click', hideExitModal);
-confirmExitBtn.addEventListener('click', removePlayer);
 
-async function removePlayer() {
+// Configurar botón de confirmar salida (debes implementar removePlayer en sheets.js)
+confirmExitBtn.addEventListener('click', async function() {
     if (!currentPlayerToRemove) return;
+    
+    // Aquí necesitarías implementar la acción removePlayer en sheets.js
+    alert('Función de eliminar jugador pendiente de implementar');
     hideExitModal();
-}
+});
 
-// Auto-refresh
-function startAutoRefresh() {
+// Smart refresh - Check cada 30 segundos
+function startSmartRefresh() {
     if (autoRefreshInterval) {
         clearInterval(autoRefreshInterval);
     }
     
     autoRefreshInterval = setInterval(() => {
         checkListStatus();
-    }, 3000);
+    }, 30000); // 30 segundos
+    
+    console.log('Smart refresh iniciado - 30 segundos');
 }
+
+// También check después de interacciones del usuario
+document.addEventListener('click', function() {
+    // Si hay clic, checkear después de 5 segundos
+    setTimeout(checkListStatus, 5000);
+});
 
 exitModal.addEventListener('click', function(e) {
     if (e.target === exitModal) hideExitModal();
