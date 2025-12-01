@@ -1,9 +1,10 @@
-// URL de tu Google Apps Script Web App
-const API_URL = 'https://script.google.com/macros/s/AKfycbzzM6_gWScIgfDKSP37d725JJzYRk71s6Pr50W1wIHTJVOL_BX-IFHkkrWyH6FAJ1QIDQ/exec';
+// URL de tu NUEVO Google Apps Script Web App
+const API_URL = 'https://script.google.com/macros/s/AKfycbzW8x5QTK8910w4j4ttewp-IsJy6VIbEWlf7jGZ3xU92XQoedWqSGHGHA3oeckRCKGd/exec';
 
-//Verificacion de usuario
+// Detectar si es admin por parámetro URL
 const urlParams = new URLSearchParams(window.location.search);
 const esAdmin = urlParams.get('admin') === 'true';
+
 // Referencias a elementos del DOM
 const closedListScreen = document.getElementById('closedListScreen');
 const openListScreen = document.getElementById('openListScreen');
