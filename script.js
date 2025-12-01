@@ -1,16 +1,14 @@
 // URL de tu Google Apps Script Web App
 const API_URL = 'https://script.google.com/macros/s/AKfycbzW8x5QTK8910w4j4ttewp-IsJy6VIbEWlf7jGZ3xU92XQoedWqSGHGHA3oeckRCKGd/exec';
 
-// Detectar si es admin por parámetro URL
-const urlParams = new URLSearchParams(window.location.search);
-const esAdmin = urlParams.get('admin') === 'true';
+// Contraseña
+const PASSWORD = 'dictadura2025';
 
 // Referencias a elementos del DOM
-const closedListScreen = document.getElementById('closedListScreen');
-const openListScreen = document.getElementById('openListScreen');
-const adminSection = document.getElementById('adminSection');
-const openListBtn = document.getElementById('openListBtn');
-const closeListBtn = document.getElementById('closeListBtn');
+const accessScreen = document.getElementById('accessScreen');
+const listScreen = document.getElementById('listScreen');
+const passwordInput = document.getElementById('passwordInput');
+const accessBtn = document.getElementById('accessBtn');
 const playerNameInput = document.getElementById('playerNameInput');
 const addPlayerBtn = document.getElementById('addPlayerBtn');
 const attendingList = document.getElementById('attendingList');
@@ -24,24 +22,43 @@ const confirmExitBtn = document.getElementById('confirmExitBtn');
 // Variables globales
 let currentPlayerToRemove = null;
 let players = [];
+let accesoPermitido = localStorage.getItem('accesoPermitido') === 'true';
 
-// Al cargar la página - MOSTRAR SIEMPRE LISTA ABIERTA
+// Al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
-    // Mostrar sección admin si es admin
-    if (esAdmin) {
-        adminSection.classList.remove('hidden');
-        closeListBtn.classList.remove('hidden');
+    if (accesoPermitido) {
+        showListScreen();
+        loadPlayers();
+        startAutoRefresh();
     } else {
-        closeListBtn.classList.add('hidden');
+        showAccessScreen();
     }
-    
-    // SIEMPRE mostrar lista abierta para jugadores
-    showOpenListScreen();
-    loadPlayers();
-    startAutoRefresh();
 });
 
-// Cargar jugadores usando método directo
+// Acceso con contraseña
+accessBtn.addEventListener('click', function() {
+    const password = passwordInput.value.trim();
+    
+    if (password === PASSWORD) {
+        accesoPermitido = true;
+        localStorage.setItem('accesoPermitido', 'true');
+        showListScreen();
+        loadPlayers();
+        startAutoRefresh();
+    } else {
+        alert('❌ Contraseña incorrecta');
+        passwordInput.value = '';
+        passwordInput.focus();
+    }
+});
+
+passwordInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        accessBtn.click();
+    }
+});
+
+// Cargar jugadores
 function loadPlayers() {
     const script = document.createElement('script');
     script.src = API_URL + '?action=getPlayers&callback=handlePlayersData';
@@ -78,39 +95,17 @@ async function simpleAPICall(action, params = {}) {
 }
 
 // Mostrar pantallas
-function showClosedListScreen() {
-    closedListScreen.classList.remove('hidden');
-    openListScreen.classList.add('hidden');
+function showAccessScreen() {
+    accessScreen.classList.remove('hidden');
+    listScreen.classList.add('hidden');
     exitModal.classList.add('hidden');
 }
 
-function showOpenListScreen() {
-    closedListScreen.classList.add('hidden');
-    openListScreen.classList.remove('hidden');
+function showListScreen() {
+    accessScreen.classList.add('hidden');
+    listScreen.classList.remove('hidden');
     exitModal.classList.add('hidden');
 }
-
-// Botones de admin
-openListBtn.addEventListener('click', async function() {
-    if (confirm('¿Quieres abrir la lista para que todos se apunten?')) {
-        const result = await simpleAPICall('createList');
-        if (result.success) {
-            players = [];
-            showOpenListScreen();
-            setTimeout(loadPlayers, 2000);
-        }
-    }
-});
-
-closeListBtn.addEventListener('click', async function() {
-    if (confirm('¿Quieres cerrar la lista?')) {
-        const result = await simpleAPICall('closeList');
-        if (result.success) {
-            players = [];
-            showClosedListScreen();
-        }
-    }
-});
 
 // Añadir jugador
 addPlayerBtn.addEventListener('click', addPlayer);
