@@ -1,4 +1,4 @@
-// URL de tu NUEVO Google Apps Script Web App
+// URL de tu Google Apps Script Web App
 const API_URL = 'https://script.google.com/macros/s/AKfycbzW8x5QTK8910w4j4ttewp-IsJy6VIbEWlf7jGZ3xU92XQoedWqSGHGHA3oeckRCKGd/exec';
 
 // Detectar si es admin por parámetro URL
@@ -24,49 +24,25 @@ const confirmExitBtn = document.getElementById('confirmExitBtn');
 // Variables globales
 let currentPlayerToRemove = null;
 let players = [];
-let listaActiva = false;
 
-// Al cargar la página
+// Al cargar la página - MOSTRAR SIEMPRE LISTA ABIERTA
 document.addEventListener('DOMContentLoaded', function() {
     // Mostrar sección admin si es admin
     if (esAdmin) {
         adminSection.classList.remove('hidden');
+        closeListBtn.classList.remove('hidden');
+    } else {
+        closeListBtn.classList.add('hidden');
     }
     
-    checkListStatus();
+    // SIEMPRE mostrar lista abierta para jugadores
+    showOpenListScreen();
+    loadPlayers();
+    startAutoRefresh();
 });
 
-// Verificar estado de la lista (CORREGIDO - usa JSONP)
-function checkListStatus() {
-    const script = document.createElement('script');
-    script.src = API_URL + '?action=getListStatus&callback=handleStatusData';
-    document.body.appendChild(script);
-    
-    setTimeout(() => {
-        if (document.body.contains(script)) {
-            document.body.removeChild(script);
-        }
-    }, 5000);
-}
-
-// Manejar estado de la lista
-window.handleStatusData = function(data) {
-    if (data && !data.error) {
-        listaActiva = data.listaActiva;
-        
-        if (listaActiva) {
-            showOpenListScreen();
-            setTimeout(loadPlayersWithIframe, 1000);
-        } else {
-            showClosedListScreen();
-        }
-    } else {
-        showClosedListScreen();
-    }
-};
-
-// Cargar jugadores (CORREGIDO - usa JSONP)
-function loadPlayersWithIframe() {
+// Cargar jugadores usando método directo
+function loadPlayers() {
     const script = document.createElement('script');
     script.src = API_URL + '?action=getPlayers&callback=handlePlayersData';
     document.body.appendChild(script);
@@ -82,10 +58,6 @@ window.handlePlayersData = function(data) {
     if (data && data.players) {
         players = data.players;
         renderPlayers(players);
-        
-        if (listaActiva) {
-            startAutoRefresh();
-        }
     }
 };
 
@@ -123,10 +95,9 @@ openListBtn.addEventListener('click', async function() {
     if (confirm('¿Quieres abrir la lista para que todos se apunten?')) {
         const result = await simpleAPICall('createList');
         if (result.success) {
-            listaActiva = true;
             players = [];
             showOpenListScreen();
-            setTimeout(loadPlayersWithIframe, 2000);
+            setTimeout(loadPlayers, 2000);
         }
     }
 });
@@ -135,7 +106,6 @@ closeListBtn.addEventListener('click', async function() {
     if (confirm('¿Quieres cerrar la lista?')) {
         const result = await simpleAPICall('closeList');
         if (result.success) {
-            listaActiva = false;
             players = [];
             showClosedListScreen();
         }
@@ -253,21 +223,15 @@ function startAutoRefresh() {
     }
     
     window.autoRefreshInterval = setInterval(() => {
-        if (listaActiva) {
-            loadPlayersWithIframe();
-        } else {
-            clearInterval(window.autoRefreshInterval);
-        }
+        loadPlayers();
     }, 2000);
 }
 
 function refreshImmediately() {
-    if (listaActiva) {
-        if (window.pendingRefresh) clearTimeout(window.pendingRefresh);
-        window.pendingRefresh = setTimeout(() => {
-            loadPlayersWithIframe();
-        }, 500);
-    }
+    if (window.pendingRefresh) clearTimeout(window.pendingRefresh);
+    window.pendingRefresh = setTimeout(() => {
+        loadPlayers();
+    }, 500);
 }
 
 exitModal.addEventListener('click', function(e) {
