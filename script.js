@@ -1,12 +1,11 @@
 // URL de tu Google Apps Script Web App
 const API_URL = 'https://script.google.com/macros/s/AKfycbzW8x5QTK8910w4j4ttewp-IsJy6VIbEWlf7jGZ3xU92XQoedWqSGHGHA3oeckRCKGd/exec';
 
-// Contraseña
+// Contraseña hardcodeada
 const PASSWORD = 'dictadura2025';
 
 // Referencias a elementos del DOM
-const accessScreen = document.getElementById('accessScreen');
-const listScreen = document.getElementById('listScreen');
+const passwordOverlay = document.getElementById('passwordOverlay');
 const passwordInput = document.getElementById('passwordInput');
 const accessBtn = document.getElementById('accessBtn');
 const playerNameInput = document.getElementById('playerNameInput');
@@ -27,12 +26,11 @@ let accesoPermitido = localStorage.getItem('accesoPermitido') === 'true';
 // Al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
     if (accesoPermitido) {
-        showListScreen();
-        loadPlayers();
-        startAutoRefresh();
-    } else {
-        showAccessScreen();
+        passwordOverlay.classList.add('hidden');
     }
+    
+    loadPlayers();
+    startAutoRefresh();
 });
 
 // Acceso con contraseña
@@ -42,9 +40,7 @@ accessBtn.addEventListener('click', function() {
     if (password === PASSWORD) {
         accesoPermitido = true;
         localStorage.setItem('accesoPermitido', 'true');
-        showListScreen();
-        loadPlayers();
-        startAutoRefresh();
+        passwordOverlay.classList.add('hidden');
     } else {
         alert('❌ Contraseña incorrecta');
         passwordInput.value = '';
@@ -92,19 +88,6 @@ async function simpleAPICall(action, params = {}) {
     } catch (error) {
         return { success: false };
     }
-}
-
-// Mostrar pantallas
-function showAccessScreen() {
-    accessScreen.classList.remove('hidden');
-    listScreen.classList.add('hidden');
-    exitModal.classList.add('hidden');
-}
-
-function showListScreen() {
-    accessScreen.classList.add('hidden');
-    listScreen.classList.remove('hidden');
-    exitModal.classList.add('hidden');
 }
 
 // Añadir jugador

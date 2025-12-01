@@ -8,25 +8,28 @@
 </head>
 <body>
     <div class="container">
-        <!-- Pantalla de acceso -->
-        <div id="accessScreen" class="screen">
-            <header>
-                <h1>🏐 Lista Volley 🏐</h1>
-                <p>Mejengas - Primeros 12 jugadores</p>
-            </header>
-            
-            <div class="message">
-                <p>Ingresa la contraseña para ver la lista:</p>
-            </div>
-            
-            <div class="access-form">
-                <input type="password" id="passwordInput" placeholder="Contraseña" maxlength="20">
-                <button id="accessBtn">Ver Lista 🔓</button>
+        <!-- Overlay de contraseña (siempre encima) -->
+        <div id="passwordOverlay" class="overlay">
+            <div class="overlay-content">
+                <header>
+                    <h1>🏐 Lista Volley 🏐</h1>
+                    <p>Mejengas - Primeros 12 jugadores</p>
+                </header>
+                
+                <div class="message">
+                    <p>Actualmente no hay lista para mejenguiar...</p>
+                    <p>...a menos que sepas lo que va escrito aquí:</p>
+                </div>
+                
+                <div class="access-form">
+                    <input type="password" id="passwordInput" placeholder="Contraseña secreta" maxlength="20">
+                    <button id="accessBtn">ACCEDER 🗝️</button>
+                </div>
             </div>
         </div>
 
-        <!-- Pantalla con lista activa -->
-        <div id="listScreen" class="screen hidden">
+        <!-- Pantalla con lista (siempre presente) -->
+        <div id="listScreen" class="screen">
             <header>
                 <h1>🏐 Lista Volley 🏐</h1>
                 <div class="list-status">

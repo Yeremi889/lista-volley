@@ -14,6 +14,7 @@ body {
 .container {
     max-width: 400px;
     margin: 0 auto;
+    position: relative;
 }
 
 .screen {
@@ -22,6 +23,34 @@ body {
     padding: 25px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
     margin-bottom: 20px;
+}
+
+/* Overlay de contraseña */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.overlay-content {
+    background: white;
+    border-radius: 20px;
+    padding: 30px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+}
+
+.overlay.hidden {
+    display: none;
 }
 
 .hidden {
@@ -45,7 +74,7 @@ header p {
     font-size: 14px;
 }
 
-/* Mensaje de acceso */
+/* Mensaje de overlay */
 .message {
     text-align: center;
     margin: 30px 0;
@@ -176,7 +205,7 @@ button {
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: 1001;
 }
 
 .modal.hidden {
@@ -228,7 +257,7 @@ button {
         padding: 15px;
     }
     
-    .screen {
+    .screen, .overlay-content {
         padding: 20px;
     }
     
