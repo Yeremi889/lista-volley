@@ -1,18 +1,17 @@
-// URL de tu Google Apps Script Web App
-const API_URL = 'https://script.google.com/macros/s/AKfycbzW8x5QTK8910w4j4ttewp-IsJy6VIbEWlf7jGZ3xU92XQoedWqSGHGHA3oeckRCKGd/exec';
-
-// Contraseña hardcodeada
-const PASSWORD = 'dictadura2025';
+// Configuración
+const API_URL = '/.netlify/functions/sheets';
 
 // Referencias a elementos del DOM
 const passwordOverlay = document.getElementById('passwordOverlay');
 const passwordInput = document.getElementById('passwordInput');
 const accessBtn = document.getElementById('accessBtn');
+const listScreen = document.getElementById('listScreen');
 const playerNameInput = document.getElementById('playerNameInput');
 const addPlayerBtn = document.getElementById('addPlayerBtn');
 const attendingList = document.getElementById('attendingList');
 const waitingList = document.getElementById('waitingList');
 const listCount = document.getElementById('listCount');
+const clearListBtn = document.getElementById('clearListBtn');
 const exitModal = document.getElementById('exitModal');
 const playerToRemove = document.getElementById('playerToRemove');
 const cancelExitBtn = document.getElementById('cancelExitBtn');
@@ -21,26 +20,43 @@ const confirmExitBtn = document.getElementById('confirmExitBtn');
 // Variables globales
 let currentPlayerToRemove = null;
 let players = [];
-let accesoPermitido = localStorage.getItem('accesoPermitido') === 'true';
+let autoRefreshInterval;
 
 // Al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
-    if (accesoPermitido) {
-        passwordOverlay.classList.add('hidden');
-    }
-    
-    loadPlayers();
+    checkListStatus();
     startAutoRefresh();
 });
 
-// Acceso con contraseña
-accessBtn.addEventListener('click', function() {
+// Verificar estado de la lista
+async function checkListStatus() {
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'getListStatus' })
+        });
+        
+        const data = await response.json();
+        
+        if (data.listaAbierta) {
+            showListScreen();
+            loadPlayers();
+        } else {
+            showAccessScreen();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAccessScreen();
+    }
+}
+
+// Acceso admin
+accessBtn.addEventListener('click', async function() {
     const password = passwordInput.value.trim();
     
-    if (password === PASSWORD) {
-        accesoPermitido = true;
-        localStorage.setItem('accesoPermitido', 'true');
-        passwordOverlay.classList.add('hidden');
+    if (password === 'dictadura2025') {
+        await openListForEveryone();
     } else {
         alert('❌ Contraseña incorrecta');
         passwordInput.value = '';
@@ -49,44 +65,40 @@ accessBtn.addEventListener('click', function() {
 });
 
 passwordInput.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        accessBtn.click();
-    }
+    if (e.key === 'Enter') accessBtn.click();
 });
 
-// Cargar jugadores
-function loadPlayers() {
-    const script = document.createElement('script');
-    script.src = API_URL + '?action=getPlayers&callback=handlePlayersData';
-    document.body.appendChild(script);
-    
-    setTimeout(() => {
-        if (document.body.contains(script)) {
-            document.body.removeChild(script);
-        }
-    }, 5000);
+// Abrir lista para todos
+async function openListForEveryone() {
+    try {
+        await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'openList' })
+        });
+        showListScreen();
+        loadPlayers();
+    } catch (error) {
+        console.error('Error abriendo lista:', error);
+    }
 }
 
-window.handlePlayersData = function(data) {
-    if (data && data.players) {
-        players = data.players;
-        renderPlayers(players);
-    }
-};
-
-// Funciones de API
-async function simpleAPICall(action, params = {}) {
+// Cargar jugadores
+async function loadPlayers() {
     try {
-        const urlParams = new URLSearchParams({
-            action: action,
-            ...params
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'getPlayers' })
         });
         
-        const img = new Image();
-        img.src = API_URL + '?' + urlParams.toString();
-        return { success: true };
+        const data = await response.json();
+        if (data.players) {
+            players = data.players;
+            renderPlayers(players);
+        }
     } catch (error) {
-        return { success: false };
+        console.error('Error cargando jugadores:', error);
     }
 }
 
@@ -109,21 +121,62 @@ async function addPlayer() {
         return;
     }
     
-    players.push(playerName);
-    renderPlayers(players);
-    
-    const result = await simpleAPICall('addPlayer', { playerName: playerName });
-    
-    if (result.success) {
-        playerNameInput.value = '';
-        playerNameInput.focus();
-        refreshImmediately();
-    } else {
-        const index = players.indexOf(playerName);
-        if (index > -1) players.splice(index, 1);
-        renderPlayers(players);
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'addPlayer', playerName })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            playerNameInput.value = '';
+            playerNameInput.focus();
+            await loadPlayers();
+        } else if (data.error) {
+            alert(data.error);
+        }
+    } catch (error) {
+        console.error('Error agregando jugador:', error);
         alert('Error al agregar jugador');
     }
+}
+
+// Limpiar lista y cerrarla
+clearListBtn.addEventListener('click', async function() {
+    if (confirm('¿Quieres cerrar la lista y crear una nueva vacía?')) {
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'closeList' })
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                players = [];
+                renderPlayers(players);
+                showAccessScreen();
+            }
+        } catch (error) {
+            console.error('Error cerrando lista:', error);
+            alert('Error al limpiar la lista');
+        }
+    }
+});
+
+// Mostrar pantallas
+function showAccessScreen() {
+    passwordOverlay.classList.remove('hidden');
+    listScreen.classList.add('hidden');
+    exitModal.classList.add('hidden');
+}
+
+function showListScreen() {
+    passwordOverlay.classList.add('hidden');
+    listScreen.classList.remove('hidden');
+    exitModal.classList.add('hidden');
 }
 
 // Renderizar jugadores
@@ -175,41 +228,18 @@ confirmExitBtn.addEventListener('click', removePlayer);
 
 async function removePlayer() {
     if (!currentPlayerToRemove) return;
-    
-    const index = players.indexOf(currentPlayerToRemove);
-    if (index > -1) {
-        players.splice(index, 1);
-        renderPlayers(players);
-    }
-    
-    const result = await simpleAPICall('removePlayer', { playerName: currentPlayerToRemove });
-    
-    if (!result.success) {
-        players.splice(index, 0, currentPlayerToRemove);
-        renderPlayers(players);
-        alert('Error al remover jugador');
-    }
-    
-    refreshImmediately();
     hideExitModal();
 }
 
 // Auto-refresh
 function startAutoRefresh() {
-    if (window.autoRefreshInterval) {
-        clearInterval(window.autoRefreshInterval);
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
     }
     
-    window.autoRefreshInterval = setInterval(() => {
-        loadPlayers();
-    }, 2000);
-}
-
-function refreshImmediately() {
-    if (window.pendingRefresh) clearTimeout(window.pendingRefresh);
-    window.pendingRefresh = setTimeout(() => {
-        loadPlayers();
-    }, 500);
+    autoRefreshInterval = setInterval(() => {
+        checkListStatus();
+    }, 3000);
 }
 
 exitModal.addEventListener('click', function(e) {

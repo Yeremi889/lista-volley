@@ -140,6 +140,17 @@ button {
     font-weight: bold;
 }
 
+.admin-btn {
+    background: #ff6b6b;
+    color: white;
+    font-size: 14px;
+    padding: 8px 15px;
+}
+
+.admin-btn:hover {
+    background: #ff5252;
+}
+
 /* Formulario añadir jugador */
 .add-player {
     display: flex;

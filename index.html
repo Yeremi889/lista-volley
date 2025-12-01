@@ -8,7 +8,7 @@
 </head>
 <body>
     <div class="container">
-        <!-- Overlay de contraseña (siempre encima) -->
+        <!-- Overlay de contraseña -->
         <div id="passwordOverlay" class="overlay">
             <div class="overlay-content">
                 <header>
@@ -28,40 +28,34 @@
             </div>
         </div>
 
-        <!-- Pantalla con lista (siempre presente) -->
-        <div id="listScreen" class="screen">
+        <!-- Pantalla con lista -->
+        <div id="listScreen" class="screen hidden">
             <header>
                 <h1>🏐 Lista Volley 🏐</h1>
                 <div class="list-status">
                     <span id="listCount">0/12</span>
+                    <button id="clearListBtn" class="admin-btn">Nueva Lista</button>
                 </div>
             </header>
 
-            <!-- Formulario para apuntar jugadores -->
             <div class="add-player">
                 <input type="text" id="playerNameInput" placeholder="Nombre del jugador" maxlength="30">
                 <button id="addPlayerBtn">Enlistar ➕</button>
             </div>
 
-            <!-- Lista de jugadores -->
             <div class="lists-container">
                 <div class="list-section">
                     <h2>✅ Van a jugar</h2>
-                    <div id="attendingList" class="players-list">
-                        <!-- Se llena dinámicamente -->
-                    </div>
+                    <div id="attendingList" class="players-list"></div>
                 </div>
 
                 <div class="list-section">
                     <h2>⏳ Lista de espera</h2>
-                    <div id="waitingList" class="players-list">
-                        <!-- Se llena dinámicamente -->
-                    </div>
+                    <div id="waitingList" class="players-list"></div>
                 </div>
             </div>
         </div>
 
-        <!-- Modal para confirmar salida -->
         <div id="exitModal" class="modal hidden">
             <div class="modal-content">
                 <h3>¿Salir de la lista?</h3>
