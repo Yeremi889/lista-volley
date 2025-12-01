@@ -203,9 +203,9 @@ exports.handler = async function(event, context) {
       };
     }
 
-    // 5. REMOVE PLAYER (pendiente de implementar completamente)
+    // 5. REMOVE PLAYER (COMPLETAMENTE IMPLEMENTADA)
     if (action === 'removePlayer' && playerName) {
-      // Implementación básica por ahora
+      // Obtener todos los jugadores
       const result = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
         range: 'A5:A100'
@@ -215,14 +215,16 @@ exports.handler = async function(event, context) {
         ? result.data.values.filter(row => row[0]).map(row => row[0])
         : [];
 
+      // Filtrar el jugador a eliminar
       const updatedPlayers = currentPlayers.filter(name => name !== playerName);
 
-      // Limpiar y reescribir
+      // Limpiar el rango
       await sheets.spreadsheets.values.clear({
         spreadsheetId: SPREADSHEET_ID,
         range: 'A5:A100'
       });
 
+      // Escribir los jugadores actualizados
       if (updatedPlayers.length > 0) {
         await sheets.spreadsheets.values.update({
           spreadsheetId: SPREADSHEET_ID,
@@ -247,6 +249,38 @@ exports.handler = async function(event, context) {
       return {
         statusCode: 200,
         body: JSON.stringify({ success: true })
+      };
+    }
+
+    // 6. GET PLAYERS (backup por si acaso)
+    if (action === 'getPlayers') {
+      const result = await sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: 'A5:A100'
+      });
+      
+      const players = result.data.values 
+        ? result.data.values.filter(row => row[0]).map(row => row[0])
+        : [];
+        
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ players })
+      };
+    }
+
+    // 7. GET LIST STATUS (backup)
+    if (action === 'getListStatus') {
+      const result = await sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: 'B1:B1'
+      });
+      
+      const listaAbierta = result.data.values && result.data.values[0] && result.data.values[0][0] === 'ABIERTA';
+      
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ listaAbierta })
       };
     }
 

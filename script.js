@@ -21,14 +21,10 @@ const confirmExitBtn = document.getElementById('confirmExitBtn');
 let currentPlayerToRemove = null;
 let players = [];
 let lastUpdateTimestamp = null;
-let myNameInList = null;
 let autoRefreshInterval;
 
 // Al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
-    // Verificar si ya tengo nombre guardado
-    myNameInList = localStorage.getItem('myPlayerName');
-    
     checkListStatus();
     startSmartPolling();
     setupEventListeners();
@@ -70,20 +66,17 @@ function setupEventListeners() {
     });
 }
 
-// Polling inteligente
+// Polling inteligente - 7 segundos para todos
 function startSmartPolling() {
     if (autoRefreshInterval) {
         clearInterval(autoRefreshInterval);
     }
     
-    // Si ya estoy apuntado, poll más lento
-    const interval = myNameInList ? 15000 : 7000;
-    
     autoRefreshInterval = setInterval(() => {
         checkListStatus();
-    }, interval);
+    }, 7000); // 7 segundos
     
-    console.log(`Polling cada ${interval/1000} segundos`);
+    console.log('Polling cada 7 segundos');
 }
 
 // Verificar estado de la lista
@@ -110,16 +103,6 @@ async function checkListStatus() {
             players = data.players;
             renderPlayers(players);
             lastUpdateTimestamp = data.lastTimestamp;
-            
-            // Verificar si mi nombre está en la lista
-            if (myNameInList && players.includes(myNameInList)) {
-                showAlreadySubscribedMessage();
-            } else if (myNameInList) {
-                // Mi nombre ya no está (quizás me quitaron)
-                myNameInList = null;
-                localStorage.removeItem('myPlayerName');
-                hideAlreadySubscribedMessage();
-            }
         }
         
         if (data.listaAbierta) {
@@ -161,10 +144,6 @@ async function addPlayer() {
         return;
     }
     
-    // Guardar mi nombre
-    localStorage.setItem('myPlayerName', playerName);
-    myNameInList = playerName;
-    
     try {
         const response = await fetch(API_URL, {
             method: 'POST',
@@ -182,9 +161,7 @@ async function addPlayer() {
             playerNameInput.value = '';
             lastUpdateTimestamp = null;
             await checkListStatus();
-            
-            // Cambiar a polling lento
-            startSmartPolling();
+            playerNameInput.focus();
             
             alert(`✅ ${playerName} apuntado correctamente`);
             
@@ -192,12 +169,9 @@ async function addPlayer() {
             alert('⚠️ La lista principal está llena. Estás en lista de espera.');
             lastUpdateTimestamp = null;
             await checkListStatus();
-            startSmartPolling();
             
         } else if (data.error === 'Ya existe') {
             alert('⚠️ Este nombre ya está en la lista');
-            myNameInList = playerName;
-            startSmartPolling();
         } else {
             alert('Error: ' + data.error);
         }
@@ -219,8 +193,6 @@ async function closeList() {
         const data = await response.json();
         if (data.success) {
             players = [];
-            myNameInList = null;
-            localStorage.removeItem('myPlayerName');
             lastUpdateTimestamp = null;
             renderPlayers(players);
             showAccessScreen();
@@ -259,13 +231,9 @@ function renderPlayers(playersList) {
         playerElement.className = `player-item ${index >= MAX_PLAYERS ? 'waiting' : ''}`;
         playerElement.innerHTML = `<span class="player-number">${index + 1}.</span>${player}`;
         
-        // Solo permitir salir si es mi nombre
-        if (player === myNameInList) {
-            playerElement.style.cursor = 'pointer';
-            playerElement.addEventListener('click', () => showExitModal(player));
-        } else {
-            playerElement.style.cursor = 'default';
-        }
+        // TODOS los jugadores son clickeables para salir
+        playerElement.style.cursor = 'pointer';
+        playerElement.addEventListener('click', () => showExitModal(player));
         
         if (index < MAX_PLAYERS) {
             attendingList.appendChild(playerElement);
@@ -284,71 +252,18 @@ function renderPlayers(playersList) {
     }
 }
 
-// Mostrar mensaje "ya estás apuntado"
-function showAlreadySubscribedMessage() {
-    const addPlayerDiv = document.querySelector('.add-player');
-    if (addPlayerDiv && !document.getElementById('alreadySubscribedMsg')) {
-        const msg = document.createElement('div');
-        msg.id = 'alreadySubscribedMsg';
-        msg.innerHTML = `
-            <div style="background: #d4edda; color: #155724; padding: 10px; 
-                       border-radius: 5px; margin-top: 10px; text-align: center;">
-                ✅ <strong>${myNameInList}</strong> ya estás en la lista.
-                <button onclick="exitList()" style="margin-left: 10px; padding: 5px 10px; 
-                       background: #dc3545; color: white; border: none; border-radius: 3px;">
-                    Salir
-                </button>
-            </div>
-        `;
-        addPlayerDiv.appendChild(msg);
-        
-        // Ocultar input de nombre
-        playerNameInput.style.display = 'none';
-        addPlayerBtn.style.display = 'none';
-    }
-}
-
-// Ocultar mensaje
-function hideAlreadySubscribedMessage() {
-    const msg = document.getElementById('alreadySubscribedMsg');
-    if (msg) msg.remove();
-    
-    // Mostrar input de nuevo
-    playerNameInput.style.display = '';
-    addPlayerBtn.style.display = '';
-}
-
-// Salir de la lista
-async function exitList() {
-    if (!myNameInList) return;
-    
-    if (confirm(`¿Quieres salir de la lista, ${myNameInList}?`)) {
-        try {
-            // Primero implementa removePlayer en sheets.js
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'removePlayer', playerName: myNameInList })
-            });
-            
-            localStorage.removeItem('myPlayerName');
-            myNameInList = null;
-            lastUpdateTimestamp = null;
-            await checkListStatus();
-            startSmartPolling();
-            
-        } catch (error) {
-            console.error('Error saliendo:', error);
-            alert('Error al salir de la lista');
-        }
-    }
-}
-
-// Modal para salir
+// Modal para salir - MODIFICADO CON NUEVO MENSAJE
 function showExitModal(playerName) {
     currentPlayerToRemove = playerName;
     playerToRemove.textContent = playerName;
     exitModal.classList.remove('hidden');
+    
+    // Actualizar el mensaje del modal
+    const modalText = exitModal.querySelector('p');
+    if (modalText) {
+        modalText.innerHTML = `¿Quieres quitar a <strong>${playerName}</strong> de los asistentes?<br>
+                              <small>(Si vuelves a apuntarte, irás al final de la lista)</small>`;
+    }
 }
 
 function hideExitModal() {
@@ -356,10 +271,7 @@ function hideExitModal() {
     currentPlayerToRemove = null;
 }
 
-// Para el botón global de exitList
-window.exitList = exitList;
-
-// Función removePlayer pendiente (necesita implementarse en sheets.js)
+// Función para remover jugador - YA IMPLEMENTADA
 async function removePlayer() {
     if (!currentPlayerToRemove) return;
     
@@ -372,15 +284,11 @@ async function removePlayer() {
         
         const data = await response.json();
         if (data.success) {
-            // Si salgo yo, actualizar estado
-            if (currentPlayerToRemove === myNameInList) {
-                myNameInList = null;
-                localStorage.removeItem('myPlayerName');
-                startSmartPolling();
-            }
-            
             lastUpdateTimestamp = null;
             await checkListStatus();
+            alert(`✅ ${currentPlayerToRemove} salió de la lista`);
+        } else {
+            alert('Error al eliminar jugador');
         }
     } catch (error) {
         console.error('Error:', error);

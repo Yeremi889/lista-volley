@@ -56,13 +56,16 @@
             </div>
         </div>
 
+        <!-- Modal para salir (ACTUALIZADO) -->
         <div id="exitModal" class="modal hidden">
             <div class="modal-content">
                 <h3>¿Salir de la lista?</h3>
-                <p>Quieres quitar a: <span id="playerToRemove"></span></p>
+                <p id="exitModalText">
+                    <!-- El texto se actualizará dinámicamente -->
+                </p>
                 <div class="modal-buttons">
-                    <button id="cancelExitBtn">Cancelar</button>
-                    <button id="confirmExitBtn">Salir ✅</button>
+                    <button id="cancelExitBtn">No, cancelar</button>
+                    <button id="confirmExitBtn">Sí, salir</button>
                 </div>
             </div>
         </div>

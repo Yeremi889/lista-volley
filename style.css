@@ -276,3 +276,102 @@ button {
         flex-direction: column;
     }
 }
+
+/* =========================================== */
+/* MODIFICACIONES AGREGADAS PARA EL NUEVO MODAL */
+/* =========================================== */
+
+/* Estilo para el modal actualizado */
+#exitModalText {
+    color: #666;
+    margin-bottom: 20px;
+    line-height: 1.5;
+    text-align: center;
+}
+
+#exitModalText strong {
+    color: #333;
+    font-weight: 600;
+}
+
+#exitModalText small {
+    color: #888;
+    font-size: 0.85em;
+    display: block;
+    margin-top: 8px;
+}
+
+/* Botones del modal actualizados */
+#cancelExitBtn {
+    background: #6c757d;
+    color: white;
+}
+
+#confirmExitBtn {
+    background: #dc3545; /* Rojo para "Sí, salir" */
+    color: white;
+}
+
+#cancelExitBtn:hover {
+    background: #5a6268;
+}
+
+#confirmExitBtn:hover {
+    background: #c82333;
+}
+
+/* Mejoras para el modal en móviles */
+@media (max-width: 480px) {
+    .modal-content {
+        padding: 20px;
+        max-width: 280px;
+    }
+    
+    .modal-buttons {
+        flex-direction: column;
+    }
+    
+    .modal-buttons button {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    #exitModalText {
+        font-size: 0.95em;
+        padding: 0 5px;
+    }
+}
+
+/* Estilo para slots vacíos */
+.player-item[style*="opacity: 0.6"] {
+    background: #f0f0f0;
+    border-left-color: #ccc;
+    color: #999;
+}
+
+.player-item[style*="opacity: 0.6"] .player-number {
+    color: #999;
+}
+
+/* Estilo para jugadores en lista de espera */
+.player-item.waiting {
+    background: #fff9e6;
+    border-left-color: #ffd43b;
+}
+
+.player-item.waiting .player-number {
+    color: #e6b800;
+}
+
+/* Ajustes para mejor UX en hover */
+.player-item:hover {
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Estilo para el contador de lista */
+#listCount {
+    font-size: 16px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    box-shadow: 0 3px 8px rgba(102, 126, 234, 0.3);
+}
