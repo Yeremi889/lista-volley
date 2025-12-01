@@ -20,84 +20,103 @@ exports.handler = async function(event, context) {
     const sheets = google.sheets({ version: 'v4', auth });
     const SPREADSHEET_ID = '1C-fmkU-RPFzkEd834U4Zb8yJ0CyD0YhhNsJDK1_iziM';
 
-    const { action, playerName, lastTimestamp, currentPlayers } = JSON.parse(event.body || '{}');
-    console.log('Action:', action);
+    const { action, playerName, lastTimestamp } = JSON.parse(event.body || '{}');
+    console.log('Action:', action, 'Player:', playerName || 'none');
 
-    // 1. GET LIST STATUS WITH PLAYERS (combo)
+    // 1. GET LIST STATUS WITH PLAYERS - OPTIMIZADO (1 REQUEST)
     if (action === 'getListStatusWithPlayers') {
-      const [statusResult, timestampResult, playersResult] = await Promise.all([
-        sheets.spreadsheets.values.get({
+      try {
+        const result = await sheets.spreadsheets.values.get({
           spreadsheetId: SPREADSHEET_ID,
-          range: 'B1:B1'
-        }),
-        sheets.spreadsheets.values.get({
-          spreadsheetId: SPREADSHEET_ID,
-          range: 'C1:C1'
-        }),
-        sheets.spreadsheets.values.get({
-          spreadsheetId: SPREADSHEET_ID,
-          range: 'A5:A30'
-        })
-      ]);
-      
-      const listaAbierta = statusResult.data.values && 
-                          statusResult.data.values[0] && 
-                          statusResult.data.values[0][0] === 'ABIERTA';
-      
-      const currentTimestamp = timestampResult.data.values && 
-                              timestampResult.data.values[0] && 
-                              timestampResult.data.values[0][0];
-      
-      const players = playersResult.data.values 
-        ? playersResult.data.values.filter(row => row[0]).map(row => row[0])
-        : [];
-      
-      const needsUpdate = !lastTimestamp || currentTimestamp !== lastTimestamp;
-      
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ 
-          listaAbierta, 
-          needsUpdate,
-          lastTimestamp: currentTimestamp,
-          players: needsUpdate ? players : []
-        })
-      };
+          range: 'A1:C30' // Todo en un solo request: A1-C1 + jugadores
+        });
+        
+        const values = result.data.values || [];
+        let listaAbierta = false;
+        let currentTimestamp = '';
+        const players = [];
+        
+        for (let i = 0; i < values.length; i++) {
+          const row = values[i];
+          
+          // Fila 1 (index 0): contiene A1, B1, C1
+          if (i === 0) {
+            // B1 es la columna 1 (0-based), C1 es columna 2
+            if (row.length > 1) listaAbierta = row[1] === 'ABIERTA';
+            if (row.length > 2) currentTimestamp = row[2] || '';
+          }
+          
+          // Jugadores empiezan desde fila 5 (A5 es index 4)
+          if (i >= 4 && row.length > 0 && row[0] && row[0].trim() !== '') {
+            players.push(row[0].trim());
+          }
+        }
+        
+        const needsUpdate = !lastTimestamp || currentTimestamp !== lastTimestamp;
+        
+        return {
+          statusCode: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache'
+          },
+          body: JSON.stringify({ 
+            listaAbierta, 
+            needsUpdate,
+            lastTimestamp: currentTimestamp,
+            players: needsUpdate ? players : []
+          })
+        };
+      } catch (error) {
+        console.error('Error en getListStatusWithPlayers:', error.message);
+        throw error;
+      }
     }
 
-    // 2. TRY ADD PLAYER (con verificación en tiempo real)
+    // 2. TRY ADD PLAYER - CON VERIFICACIÓN
     if (action === 'tryAddPlayer' && playerName) {
-      // Obtener estado actual REAL
-      const [currentData, statusResult] = await Promise.all([
-        sheets.spreadsheets.values.get({
+      try {
+        // Primero verificar estado y jugadores actuales
+        const result = await sheets.spreadsheets.values.get({
           spreadsheetId: SPREADSHEET_ID,
-          range: 'A5:A30'
-        }),
-        sheets.spreadsheets.values.get({
-          spreadsheetId: SPREADSHEET_ID,
-          range: 'B1:B1'
-        })
-      ]);
-      
-      const currentPlayersList = currentData.data.values 
-        ? currentData.data.values.filter(row => row[0]).map(row => row[0])
-        : [];
-      
-      const listaAbierta = statusResult.data.values && 
-                          statusResult.data.values[0] && 
-                          statusResult.data.values[0][0] === 'ABIERTA';
-      
-      if (!listaAbierta) {
-        return { statusCode: 400, body: JSON.stringify({ error: 'Lista cerrada' }) };
-      }
-      
-      if (currentPlayersList.includes(playerName)) {
-        return { statusCode: 400, body: JSON.stringify({ error: 'Ya existe' }) };
-      }
-      
-      // Verificar si hay espacio (primeros 12)
-      if (currentPlayersList.length >= 12) {
-        // Agregar a lista de espera
+          range: 'A1:C30'
+        });
+        
+        const values = result.data.values || [];
+        let listaAbierta = false;
+        const currentPlayers = [];
+        
+        for (let i = 0; i < values.length; i++) {
+          const row = values[i];
+          
+          if (i === 0 && row.length > 1) {
+            listaAbierta = row[1] === 'ABIERTA';
+          }
+          
+          if (i >= 4 && row.length > 0 && row[0] && row[0].trim() !== '') {
+            currentPlayers.push(row[0].trim());
+          }
+        }
+        
+        // Validaciones
+        if (!listaAbierta) {
+          return { 
+            statusCode: 400, 
+            body: JSON.stringify({ error: 'Lista cerrada' }) 
+          };
+        }
+        
+        if (currentPlayers.includes(playerName.trim())) {
+          return { 
+            statusCode: 400, 
+            body: JSON.stringify({ error: 'Ya existe' }) 
+          };
+        }
+        
+        // Determinar posición (jugadores o espera)
+        const position = currentPlayers.length >= 12 ? 'espera' : 'jugadores';
+        
+        // Agregar jugador
         await sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEET_ID,
           range: 'A5:A100',
@@ -107,7 +126,7 @@ exports.handler = async function(event, context) {
           }
         });
         
-        // Actualizar timestamp
+        // Actualizar timestamp en C1
         await sheets.spreadsheets.values.update({
           spreadsheetId: SPREADSHEET_ID,
           range: 'C1:C1',
@@ -117,36 +136,89 @@ exports.handler = async function(event, context) {
           }
         });
         
-        return { statusCode: 200, body: JSON.stringify({ 
-          success: true,
-          message: 'Lista llena - Agregado a espera'
-        }) };
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ 
+            success: true,
+            position: position,
+            message: position === 'espera' ? 'Agregado a lista de espera' : 'Agregado a jugadores'
+          })
+        };
+      } catch (error) {
+        console.error('Error en tryAddPlayer:', error);
+        throw error;
       }
-      
-      // Hay espacio, agregar normalmente
-      await sheets.spreadsheets.values.append({
-        spreadsheetId: SPREADSHEET_ID,
-        range: 'A5:A100',
-        valueInputOption: 'RAW',
-        requestBody: {
-          values: [[playerName]]
-        }
-      });
-      
-      // Actualizar timestamp
-      await sheets.spreadsheets.values.update({
-        spreadsheetId: SPREADSHEET_ID,
-        range: 'C1:C1',
-        valueInputOption: 'RAW',
-        requestBody: {
-          values: [[new Date().toISOString()]]
-        }
-      });
-      
-      return { statusCode: 200, body: JSON.stringify({ success: true }) };
     }
 
-    // 3. OPEN LIST
+    // 3. REMOVE PLAYER - COMPLETAMENTE FUNCIONAL
+    if (action === 'removePlayer' && playerName) {
+      try {
+        // Obtener todos los jugadores
+        const result = await sheets.spreadsheets.values.get({
+          spreadsheetId: SPREADSHEET_ID,
+          range: 'A5:A100'
+        });
+        
+        const currentPlayers = result.data.values 
+          ? result.data.values
+              .filter(row => row[0] && row[0].trim() !== '')
+              .map(row => row[0].trim())
+          : [];
+        
+        // Verificar que el jugador existe
+        if (!currentPlayers.includes(playerName.trim())) {
+          return { 
+            statusCode: 400, 
+            body: JSON.stringify({ error: 'Jugador no encontrado' }) 
+          };
+        }
+        
+        // Filtrar el jugador a eliminar (case insensitive)
+        const updatedPlayers = currentPlayers.filter(
+          name => name.toLowerCase() !== playerName.trim().toLowerCase()
+        );
+        
+        // Limpiar el rango
+        await sheets.spreadsheets.values.clear({
+          spreadsheetId: SPREADSHEET_ID,
+          range: 'A5:A100'
+        });
+        
+        // Escribir los jugadores actualizados si hay alguno
+        if (updatedPlayers.length > 0) {
+          const values = updatedPlayers.map(name => [name]);
+          await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: 'A5:A' + (4 + updatedPlayers.length),
+            valueInputOption: 'RAW',
+            requestBody: { values }
+          });
+        }
+        
+        // Actualizar timestamp en C1
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: SPREADSHEET_ID,
+          range: 'C1:C1',
+          valueInputOption: 'RAW',
+          requestBody: {
+            values: [[new Date().toISOString()]]
+          }
+        });
+        
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ 
+            success: true,
+            message: 'Jugador eliminado correctamente'
+          })
+        };
+      } catch (error) {
+        console.error('Error en removePlayer:', error);
+        throw error;
+      }
+    }
+
+    // 4. OPEN LIST
     if (action === 'openList') {
       await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
@@ -172,7 +244,7 @@ exports.handler = async function(event, context) {
       };
     }
 
-    // 4. CLOSE LIST
+    // 5. CLOSE LIST
     if (action === 'closeList') {
       await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
@@ -203,56 +275,7 @@ exports.handler = async function(event, context) {
       };
     }
 
-    // 5. REMOVE PLAYER (COMPLETAMENTE IMPLEMENTADA)
-    if (action === 'removePlayer' && playerName) {
-      // Obtener todos los jugadores
-      const result = await sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
-        range: 'A5:A100'
-      });
-      
-      const currentPlayers = result.data.values 
-        ? result.data.values.filter(row => row[0]).map(row => row[0])
-        : [];
-
-      // Filtrar el jugador a eliminar
-      const updatedPlayers = currentPlayers.filter(name => name !== playerName);
-
-      // Limpiar el rango
-      await sheets.spreadsheets.values.clear({
-        spreadsheetId: SPREADSHEET_ID,
-        range: 'A5:A100'
-      });
-
-      // Escribir los jugadores actualizados
-      if (updatedPlayers.length > 0) {
-        await sheets.spreadsheets.values.update({
-          spreadsheetId: SPREADSHEET_ID,
-          range: 'A5:A' + (4 + updatedPlayers.length),
-          valueInputOption: 'RAW',
-          requestBody: {
-            values: updatedPlayers.map(name => [name])
-          }
-        });
-      }
-
-      // Actualizar timestamp
-      await sheets.spreadsheets.values.update({
-        spreadsheetId: SPREADSHEET_ID,
-        range: 'C1:C1',
-        valueInputOption: 'RAW',
-        requestBody: {
-          values: [[new Date().toISOString()]]
-        }
-      });
-
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ success: true })
-      };
-    }
-
-    // 6. GET PLAYERS (backup por si acaso)
+    // 6. ACCIONES DE BACKUP (por compatibilidad)
     if (action === 'getPlayers') {
       const result = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
@@ -260,7 +283,9 @@ exports.handler = async function(event, context) {
       });
       
       const players = result.data.values 
-        ? result.data.values.filter(row => row[0]).map(row => row[0])
+        ? result.data.values
+            .filter(row => row[0] && row[0].trim() !== '')
+            .map(row => row[0].trim())
         : [];
         
       return {
@@ -269,14 +294,15 @@ exports.handler = async function(event, context) {
       };
     }
 
-    // 7. GET LIST STATUS (backup)
     if (action === 'getListStatus') {
       const result = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
         range: 'B1:B1'
       });
       
-      const listaAbierta = result.data.values && result.data.values[0] && result.data.values[0][0] === 'ABIERTA';
+      const listaAbierta = result.data.values && 
+                          result.data.values[0] && 
+                          result.data.values[0][0] === 'ABIERTA';
       
       return {
         statusCode: 200,
@@ -290,10 +316,29 @@ exports.handler = async function(event, context) {
     };
 
   } catch (error) {
-    console.error('Error:', error);
+    console.error('ERROR DETALLADO:', {
+      message: error.message,
+      code: error.code,
+      action: JSON.parse(event.body || '{}').action
+    });
+    
+    // Manejo específico para errores de quota
+    if (error.message && error.message.includes('Quota exceeded')) {
+      return {
+        statusCode: 429,
+        body: JSON.stringify({ 
+          error: 'Límite temporal excedido',
+          message: 'Por favor espera unos segundos'
+        })
+      };
+    }
+    
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Error del servidor' })
+      body: JSON.stringify({ 
+        error: 'Error del servidor',
+        details: error.message 
+      })
     };
   }
 };

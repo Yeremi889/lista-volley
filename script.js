@@ -22,9 +22,11 @@ let currentPlayerToRemove = null;
 let players = [];
 let lastUpdateTimestamp = null;
 let autoRefreshInterval;
+let isInEmergencyMode = false;
 
 // Al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Página cargada - Iniciando sistema...');
     checkListStatus();
     startSmartPolling();
     setupEventListeners();
@@ -66,17 +68,33 @@ function setupEventListeners() {
     });
 }
 
-// Polling inteligente - 7 segundos para todos
+// Polling inteligente - Manejo de límites
 function startSmartPolling() {
     if (autoRefreshInterval) {
         clearInterval(autoRefreshInterval);
     }
     
+    const interval = isInEmergencyMode ? 30000 : 15000; // 30s si hay límites, 15s normal
+    
     autoRefreshInterval = setInterval(() => {
         checkListStatus();
-    }, 7000); // 7 segundos
+    }, interval);
     
-    console.log('Polling cada 7 segundos');
+    console.log(`Polling cada ${interval/1000} segundos (${isInEmergencyMode ? 'emergencia' : 'normal'})`);
+}
+
+// Polling de emergencia (cuando se excede límite)
+function startEmergencyPolling() {
+    isInEmergencyMode = true;
+    startSmartPolling();
+    console.log('Modo emergencia activado - Polling cada 30 segundos');
+    
+    // Volver a normal después de 2 minutos
+    setTimeout(() => {
+        isInEmergencyMode = false;
+        startSmartPolling();
+        console.log('Volviendo a modo normal');
+    }, 120000);
 }
 
 // Verificar estado de la lista
@@ -91,38 +109,53 @@ async function checkListStatus() {
             })
         });
         
+        // Manejo de error 429 (Too Many Requests)
+        if (response.status === 429) {
+            console.warn('⚠️ Límite de API excedido, activando modo emergencia');
+            if (!isInEmergencyMode) {
+                startEmergencyPolling();
+            }
+            return;
+        }
+        
         if (!response.ok) {
-            console.warn('Error:', response.status);
+            console.warn('Error en checkListStatus:', response.status);
             return;
         }
         
         const data = await response.json();
         
-        // Actualizar si hay cambios
+        // Si hay cambios, actualizar
         if (data.needsUpdate && data.players) {
             players = data.players;
             renderPlayers(players);
             lastUpdateTimestamp = data.lastTimestamp;
         }
         
+        // Mostrar pantalla correcta
         if (data.listaAbierta) {
             showListScreen();
         } else {
             showAccessScreen();
         }
     } catch (error) {
-        console.warn('Error:', error);
+        console.warn('Error en checkListStatus:', error);
     }
 }
 
 // Abrir lista
 async function openListForEveryone() {
     try {
-        await fetch(API_URL, {
+        const response = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'openList' })
         });
+        
+        if (!response.ok) {
+            alert('Error al abrir lista');
+            return;
+        }
         
         lastUpdateTimestamp = null;
         await checkListStatus();
@@ -150,33 +183,37 @@ async function addPlayer() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 action: 'tryAddPlayer', 
-                playerName,
-                currentPlayers: players.length
+                playerName: playerName
             })
         });
         
         const data = await response.json();
         
-        if (data.success) {
+        if (response.ok && data.success) {
             playerNameInput.value = '';
             lastUpdateTimestamp = null;
             await checkListStatus();
             playerNameInput.focus();
             
-            alert(`✅ ${playerName} apuntado correctamente`);
-            
-        } else if (data.error === 'Lista llena') {
-            alert('⚠️ La lista principal está llena. Estás en lista de espera.');
-            lastUpdateTimestamp = null;
-            await checkListStatus();
+            if (data.position === 'espera') {
+                alert(`✅ ${playerName} apuntado en LISTA DE ESPERA`);
+            } else {
+                alert(`✅ ${playerName} apuntado correctamente`);
+            }
             
         } else if (data.error === 'Ya existe') {
             alert('⚠️ Este nombre ya está en la lista');
+            playerNameInput.focus();
+            playerNameInput.select();
+            
+        } else if (data.error === 'Lista cerrada') {
+            alert('❌ La lista está cerrada');
+            
         } else {
-            alert('Error: ' + data.error);
+            alert('Error: ' + (data.error || 'Desconocido'));
         }
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error agregando jugador:', error);
         alert('Error al agregar jugador');
     }
 }
@@ -194,9 +231,11 @@ async function closeList() {
         if (data.success) {
             players = [];
             lastUpdateTimestamp = null;
+            isInEmergencyMode = false;
             renderPlayers(players);
             showAccessScreen();
             alert('✅ Lista cerrada - Nueva lista lista para usar');
+            startSmartPolling(); // Resetear polling
         }
     } catch (error) {
         console.error('Error cerrando lista:', error);
@@ -233,6 +272,7 @@ function renderPlayers(playersList) {
         
         // TODOS los jugadores son clickeables para salir
         playerElement.style.cursor = 'pointer';
+        playerElement.title = 'Haz click para salir de la lista';
         playerElement.addEventListener('click', () => showExitModal(player));
         
         if (index < MAX_PLAYERS) {
@@ -242,28 +282,30 @@ function renderPlayers(playersList) {
         }
     });
     
+    // Mostrar slots vacíos
     for (let i = playersList.length; i < MAX_PLAYERS; i++) {
         const emptySlot = document.createElement('div');
         emptySlot.className = 'player-item';
         emptySlot.innerHTML = `<span class="player-number">${i + 1}.</span>[VACIO]`;
         emptySlot.style.opacity = '0.6';
         emptySlot.style.cursor = 'default';
+        emptySlot.title = 'Espacio disponible';
         attendingList.appendChild(emptySlot);
     }
 }
 
-// Modal para salir - MODIFICADO CON NUEVO MENSAJE
+// Modal para salir
 function showExitModal(playerName) {
     currentPlayerToRemove = playerName;
-    playerToRemove.textContent = playerName;
-    exitModal.classList.remove('hidden');
     
     // Actualizar el mensaje del modal
-    const modalText = exitModal.querySelector('p');
+    const modalText = document.getElementById('exitModalText');
     if (modalText) {
         modalText.innerHTML = `¿Quieres quitar a <strong>${playerName}</strong> de los asistentes?<br>
                               <small>(Si vuelves a apuntarte, irás al final de la lista)</small>`;
     }
+    
+    exitModal.classList.remove('hidden');
 }
 
 function hideExitModal() {
@@ -271,29 +313,49 @@ function hideExitModal() {
     currentPlayerToRemove = null;
 }
 
-// Función para remover jugador - YA IMPLEMENTADA
+// Función para remover jugador - YA COMPLETAMENTE FUNCIONAL
 async function removePlayer() {
-    if (!currentPlayerToRemove) return;
+    if (!currentPlayerToRemove) {
+        hideExitModal();
+        return;
+    }
     
     try {
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'removePlayer', playerName: currentPlayerToRemove })
+            body: JSON.stringify({ 
+                action: 'removePlayer', 
+                playerName: currentPlayerToRemove 
+            })
         });
         
         const data = await response.json();
-        if (data.success) {
+        
+        if (response.ok && data.success) {
             lastUpdateTimestamp = null;
             await checkListStatus();
             alert(`✅ ${currentPlayerToRemove} salió de la lista`);
+            
+        } else if (data.error === 'Jugador no encontrado') {
+            alert('⚠️ Este jugador ya no está en la lista');
+            lastUpdateTimestamp = null;
+            await checkListStatus();
+            
         } else {
-            alert('Error al eliminar jugador');
+            alert('❌ Error: ' + (data.error || 'No se pudo eliminar'));
         }
     } catch (error) {
-        console.error('Error:', error);
-        alert('Error al eliminar jugador');
+        console.error('Error eliminando jugador:', error);
+        alert('❌ Error al eliminar jugador');
     }
     
     hideExitModal();
 }
+
+// También recargar al hacer foco en la página (para actualizaciones rápidas)
+window.addEventListener('focus', function() {
+    console.log('Página en foco - Actualizando...');
+    lastUpdateTimestamp = null;
+    checkListStatus();
+});
