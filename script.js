@@ -36,16 +36,15 @@ document.addEventListener('DOMContentLoaded', function() {
     checkListStatus();
 });
 
-// Verificar estado de la lista
+// Verificar estado de la lista (CORREGIDO - usa JSONP)
 function checkListStatus() {
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = API_URL + '?action=getListStatus&callback=handleStatusData';
-    document.body.appendChild(iframe);
+    const script = document.createElement('script');
+    script.src = API_URL + '?action=getListStatus&callback=handleStatusData';
+    document.body.appendChild(script);
     
     setTimeout(() => {
-        if (document.body.contains(iframe)) {
-            document.body.removeChild(iframe);
+        if (document.body.contains(script)) {
+            document.body.removeChild(script);
         }
     }, 5000);
 }
@@ -66,16 +65,15 @@ window.handleStatusData = function(data) {
     }
 };
 
-// Cargar jugadores
+// Cargar jugadores (CORREGIDO - usa JSONP)
 function loadPlayersWithIframe() {
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = API_URL + '?action=getPlayers&callback=handlePlayersData';
-    document.body.appendChild(iframe);
+    const script = document.createElement('script');
+    script.src = API_URL + '?action=getPlayers&callback=handlePlayersData';
+    document.body.appendChild(script);
     
     setTimeout(() => {
-        if (document.body.contains(iframe)) {
-            document.body.removeChild(iframe);
+        if (document.body.contains(script)) {
+            document.body.removeChild(script);
         }
     }, 5000);
 }
