@@ -8,22 +8,22 @@
 </head>
 <body>
     <div class="container">
-        <!-- Overlay de contraseña -->
+        <!-- contraseña -->
         <div id="passwordOverlay" class="overlay">
             <div class="overlay-content">
                 <header>
                     <h1>🏐 Lista Volley 🏐</h1>
-                    <p>Mejengas - Primeros 12 jugadores</p>
+                    <p>Mejenga solo para maletudos</p>
                 </header>
                 
                 <div class="message">
-                    <p>Actualmente no hay lista para mejenguiar...</p>
-                    <p>...a menos que sepas lo que va escrito aquí:</p>
+                    <p>Actualmente no hay lista, no sean intensos...</p>
+                    <p>...a menos que sepan lo que va escrito aquí:</p>
                 </div>
                 
                 <div class="access-form">
                     <input type="password" id="passwordInput" placeholder="Contraseña secreta" maxlength="20">
-                    <button id="accessBtn">ACCEDER 🗝️</button>
+                    <button id="accessBtn">🗝️ ACCEDER 🗝️</button>
                 </div>
             </div>
         </div>
@@ -31,7 +31,7 @@
         <!-- Pantalla con lista -->
         <div id="listScreen" class="screen hidden">
             <header>
-                <h1>🏐 Lista Volley 🏐</h1>
+                <h1>🏐 Lista 🏐</h1>
                 <div class="list-status">
                     <span id="listCount">0/12</span>
                     <button id="clearListBtn" class="admin-btn">Nueva Lista</button>
@@ -45,23 +45,22 @@
 
             <div class="lists-container">
                 <div class="list-section">
-                    <h2>✅ Van a jugar</h2>
+                    <h2>✅ Van a jugar ✅</h2>
                     <div id="attendingList" class="players-list"></div>
                 </div>
 
                 <div class="list-section">
-                    <h2>⏳ Lista de espera</h2>
+                    <h2>⏳ Lista de espera ⏳</h2>
                     <div id="waitingList" class="players-list"></div>
                 </div>
             </div>
         </div>
 
-        <!-- Modal para salir (ACTUALIZADO) -->
+        <!--Funcion de salida -->
         <div id="exitModal" class="modal hidden">
             <div class="modal-content">
                 <h3>¿Salir de la lista?</h3>
                 <p id="exitModalText">
-                    <!-- El texto se actualizará dinámicamente -->
                 </p>
                 <div class="modal-buttons">
                     <button id="cancelExitBtn">No, cancelar</button>

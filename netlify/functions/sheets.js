@@ -23,12 +23,12 @@ exports.handler = async function(event, context) {
     const { action, playerName, lastTimestamp } = JSON.parse(event.body || '{}');
     console.log('Action:', action, 'Player:', playerName || 'none');
 
-    // 1. GET LIST STATUS WITH PLAYERS - OPTIMIZADO (1 REQUEST)
+    // estado de jugadores
     if (action === 'getListStatusWithPlayers') {
       try {
         const result = await sheets.spreadsheets.values.get({
           spreadsheetId: SPREADSHEET_ID,
-          range: 'A1:C30' // Todo en un solo request: A1-C1 + jugadores
+          range: 'A1:C30'
         });
         
         const values = result.data.values || [];
@@ -46,7 +46,7 @@ exports.handler = async function(event, context) {
             if (row.length > 2) currentTimestamp = row[2] || '';
           }
           
-          // Jugadores empiezan desde fila 5 (A5 es index 4)
+          // Jugadores fila 5 (A5 es index 4)
           if (i >= 4 && row.length > 0 && row[0] && row[0].trim() !== '') {
             players.push(row[0].trim());
           }
@@ -73,10 +73,9 @@ exports.handler = async function(event, context) {
       }
     }
 
-    // 2. TRY ADD PLAYER - CON VERIFICACIÓN
     if (action === 'tryAddPlayer' && playerName) {
       try {
-        // Primero verificar estado y jugadores actuales
+        //verificar estado y jugadores actuales
         const result = await sheets.spreadsheets.values.get({
           spreadsheetId: SPREADSHEET_ID,
           range: 'A1:C30'
@@ -126,7 +125,7 @@ exports.handler = async function(event, context) {
           }
         });
         
-        // Actualizar timestamp en C1
+        // Actualizar timestamp
         await sheets.spreadsheets.values.update({
           spreadsheetId: SPREADSHEET_ID,
           range: 'C1:C1',
@@ -150,10 +149,9 @@ exports.handler = async function(event, context) {
       }
     }
 
-    // 3. REMOVE PLAYER - COMPLETAMENTE FUNCIONAL
+    // 3. REMOVE PLAYER
     if (action === 'removePlayer' && playerName) {
       try {
-        // Obtener todos los jugadores
         const result = await sheets.spreadsheets.values.get({
           spreadsheetId: SPREADSHEET_ID,
           range: 'A5:A100'
@@ -165,7 +163,7 @@ exports.handler = async function(event, context) {
               .map(row => row[0].trim())
           : [];
         
-        // Verificar que el jugador existe
+        // Verifica que el jugador existe
         if (!currentPlayers.includes(playerName.trim())) {
           return { 
             statusCode: 400, 
@@ -173,18 +171,17 @@ exports.handler = async function(event, context) {
           };
         }
         
-        // Filtrar el jugador a eliminar (case insensitive)
+        // Filtrar el jugador a eliminar
         const updatedPlayers = currentPlayers.filter(
           name => name.toLowerCase() !== playerName.trim().toLowerCase()
         );
         
-        // Limpiar el rango
         await sheets.spreadsheets.values.clear({
           spreadsheetId: SPREADSHEET_ID,
           range: 'A5:A100'
         });
         
-        // Escribir los jugadores actualizados si hay alguno
+        // actualizar jugadores
         if (updatedPlayers.length > 0) {
           const values = updatedPlayers.map(name => [name]);
           await sheets.spreadsheets.values.update({
@@ -195,7 +192,7 @@ exports.handler = async function(event, context) {
           });
         }
         
-        // Actualizar timestamp en C1
+        // Actualiza timestamp
         await sheets.spreadsheets.values.update({
           spreadsheetId: SPREADSHEET_ID,
           range: 'C1:C1',
@@ -218,7 +215,6 @@ exports.handler = async function(event, context) {
       }
     }
 
-    // 4. OPEN LIST
     if (action === 'openList') {
       await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
@@ -244,7 +240,6 @@ exports.handler = async function(event, context) {
       };
     }
 
-    // 5. CLOSE LIST
     if (action === 'closeList') {
       await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
@@ -275,7 +270,6 @@ exports.handler = async function(event, context) {
       };
     }
 
-    // 6. ACCIONES DE BACKUP (por compatibilidad)
     if (action === 'getPlayers') {
       const result = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
@@ -322,7 +316,7 @@ exports.handler = async function(event, context) {
       action: JSON.parse(event.body || '{}').action
     });
     
-    // Manejo específico para errores de quota
+    // Manejo de errores
     if (error.message && error.message.includes('Quota exceeded')) {
       return {
         statusCode: 429,

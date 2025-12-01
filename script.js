@@ -24,7 +24,7 @@ let lastUpdateTimestamp = null;
 let autoRefreshInterval;
 let isInEmergencyMode = false;
 
-// Al cargar la página
+// cargar la página
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Página cargada - Iniciando sistema...');
     checkListStatus();
@@ -68,13 +68,13 @@ function setupEventListeners() {
     });
 }
 
-// Polling inteligente - Manejo de límites
+// Polling-manejo de requests
 function startSmartPolling() {
     if (autoRefreshInterval) {
         clearInterval(autoRefreshInterval);
     }
     
-    const interval = isInEmergencyMode ? 30000 : 15000; // 30s si hay límites, 15s normal
+    const interval = isInEmergencyMode ? 30000 : 15000; // 30s con límites, 15s normal
     
     autoRefreshInterval = setInterval(() => {
         checkListStatus();
@@ -83,21 +83,21 @@ function startSmartPolling() {
     console.log(`Polling cada ${interval/1000} segundos (${isInEmergencyMode ? 'emergencia' : 'normal'})`);
 }
 
-// Polling de emergencia (cuando se excede límite)
+// Polling emergencia 
 function startEmergencyPolling() {
     isInEmergencyMode = true;
     startSmartPolling();
     console.log('Modo emergencia activado - Polling cada 30 segundos');
     
-    // Volver a normal después de 2 minutos
+    // Volver a normal
     setTimeout(() => {
         isInEmergencyMode = false;
         startSmartPolling();
         console.log('Volviendo a modo normal');
-    }, 120000);
+    }, 60000);
 }
 
-// Verificar estado de la lista
+// Verificar estado de lista
 async function checkListStatus() {
     try {
         const response = await fetch(API_URL, {
@@ -109,7 +109,7 @@ async function checkListStatus() {
             })
         });
         
-        // Manejo de error 429 (Too Many Requests)
+        // error 429
         if (response.status === 429) {
             console.warn('⚠️ Límite de API excedido, activando modo emergencia');
             if (!isInEmergencyMode) {
@@ -125,14 +125,13 @@ async function checkListStatus() {
         
         const data = await response.json();
         
-        // Si hay cambios, actualizar
+        // actualizar camb
         if (data.needsUpdate && data.players) {
             players = data.players;
             renderPlayers(players);
             lastUpdateTimestamp = data.lastTimestamp;
         }
         
-        // Mostrar pantalla correcta
         if (data.listaAbierta) {
             showListScreen();
         } else {
@@ -160,7 +159,7 @@ async function openListForEveryone() {
         lastUpdateTimestamp = null;
         await checkListStatus();
         
-        alert('✅ Lista abierta - Los jugadores ya pueden apuntarse');
+        alert('Lista abierta - Los jugadores ya pueden apuntarse');
         
     } catch (error) {
         console.error('Error abriendo lista:', error);
@@ -173,7 +172,7 @@ async function addPlayer() {
     const playerName = playerNameInput.value.trim();
     
     if (playerName === '') {
-        alert('Por favor escribe un nombre');
+        alert('Escriba el nombre');
         return;
     }
     
@@ -198,16 +197,16 @@ async function addPlayer() {
             if (data.position === 'espera') {
                 alert(`✅ ${playerName} apuntado en LISTA DE ESPERA`);
             } else {
-                alert(`✅ ${playerName} apuntado correctamente`);
+                alert(`✅ ${playerName} apuntado CORRECTAMENTE`);
             }
             
         } else if (data.error === 'Ya existe') {
-            alert('⚠️ Este nombre ya está en la lista');
+            alert('Nombre ya anotado');
             playerNameInput.focus();
             playerNameInput.select();
             
         } else if (data.error === 'Lista cerrada') {
-            alert('❌ La lista está cerrada');
+            alert('❌ LISTA CERRADA ❌');
             
         } else {
             alert('Error: ' + (data.error || 'Desconocido'));
@@ -234,8 +233,8 @@ async function closeList() {
             isInEmergencyMode = false;
             renderPlayers(players);
             showAccessScreen();
-            alert('✅ Lista cerrada - Nueva lista lista para usar');
-            startSmartPolling(); // Resetear polling
+            alert('lista para usar');
+            startSmartPolling();
         }
     } catch (error) {
         console.error('Error cerrando lista:', error);
@@ -270,7 +269,7 @@ function renderPlayers(playersList) {
         playerElement.className = `player-item ${index >= MAX_PLAYERS ? 'waiting' : ''}`;
         playerElement.innerHTML = `<span class="player-number">${index + 1}.</span>${player}`;
         
-        // TODOS los jugadores son clickeables para salir
+        // opcion para salir de lista
         playerElement.style.cursor = 'pointer';
         playerElement.title = 'Haz click para salir de la lista';
         playerElement.addEventListener('click', () => showExitModal(player));
@@ -282,7 +281,7 @@ function renderPlayers(playersList) {
         }
     });
     
-    // Mostrar slots vacíos
+    // slots vacíos
     for (let i = playersList.length; i < MAX_PLAYERS; i++) {
         const emptySlot = document.createElement('div');
         emptySlot.className = 'player-item';
@@ -298,7 +297,6 @@ function renderPlayers(playersList) {
 function showExitModal(playerName) {
     currentPlayerToRemove = playerName;
     
-    // Actualizar el mensaje del modal
     const modalText = document.getElementById('exitModalText');
     if (modalText) {
         modalText.innerHTML = `¿Quieres quitar a <strong>${playerName}</strong> de los asistentes?<br>
@@ -313,7 +311,7 @@ function hideExitModal() {
     currentPlayerToRemove = null;
 }
 
-// Función para remover jugador - YA COMPLETAMENTE FUNCIONAL
+// Función para remover jugador
 async function removePlayer() {
     if (!currentPlayerToRemove) {
         hideExitModal();
@@ -335,7 +333,7 @@ async function removePlayer() {
         if (response.ok && data.success) {
             lastUpdateTimestamp = null;
             await checkListStatus();
-            alert(`✅ ${currentPlayerToRemove} salió de la lista`);
+            alert(` ${currentPlayerToRemove} salió de la lista`);
             
         } else if (data.error === 'Jugador no encontrado') {
             alert('⚠️ Este jugador ya no está en la lista');
@@ -343,17 +341,16 @@ async function removePlayer() {
             await checkListStatus();
             
         } else {
-            alert('❌ Error: ' + (data.error || 'No se pudo eliminar'));
+            alert('Error: ' + (data.error || 'No se pudo eliminar'));
         }
     } catch (error) {
         console.error('Error eliminando jugador:', error);
-        alert('❌ Error al eliminar jugador');
+        alert('Error al eliminar jugador');
     }
     
     hideExitModal();
 }
 
-// También recargar al hacer foco en la página (para actualizaciones rápidas)
 window.addEventListener('focus', function() {
     console.log('Página en foco - Actualizando...');
     lastUpdateTimestamp = null;
