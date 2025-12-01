@@ -45,7 +45,7 @@ header p {
     font-size: 14px;
 }
 
-/* Mensaje de no lista */
+/* Mensaje de lista cerrada */
 .message {
     text-align: center;
     margin: 30px 0;
@@ -53,15 +53,28 @@ header p {
     line-height: 1.6;
 }
 
-/* Acceso admin */
-.admin-access {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
+/* Sección admin */
+.admin-section {
+    text-align: center;
+    margin-top: 20px;
 }
 
-input[type="text"],
-input[type="password"] {
+.admin-section.hidden {
+    display: none;
+}
+
+/* Formulario añadir jugador */
+.add-player {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 25px;
+}
+
+.add-player input {
+    flex: 1;
+}
+
+input[type="text"] {
     padding: 15px;
     border: 2px solid #ddd;
     border-radius: 10px;
@@ -69,8 +82,7 @@ input[type="password"] {
     transition: border-color 0.3s;
 }
 
-input[type="text"]:focus,
-input[type="password"]:focus {
+input[type="text"]:focus {
     outline: none;
     border-color: #667eea;
 }
@@ -85,12 +97,12 @@ button {
     transition: all 0.3s;
 }
 
-#accessBtn, #addPlayerBtn {
+#addPlayerBtn {
     background: linear-gradient(135deg, #667eea, #764ba2);
     color: white;
 }
 
-#accessBtn:hover, #addPlayerBtn:hover {
+#addPlayerBtn:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
 }
@@ -120,17 +132,6 @@ button {
 
 .admin-btn:hover {
     background: #ff5252;
-}
-
-/* Formulario añadir jugador */
-.add-player {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 25px;
-}
-
-.add-player input {
-    flex: 1;
 }
 
 /* Listas de jugadores */

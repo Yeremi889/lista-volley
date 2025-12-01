@@ -1,11 +1,14 @@
 // URL de tu Google Apps Script Web App
 const API_URL = 'https://script.google.com/macros/s/AKfycbzzM6_gWScIgfDKSP37d725JJzYRk71s6Pr50W1wIHTJVOL_BX-IFHkkrWyH6FAJ1QIDQ/exec';
 
+// ⚠️ IMPORTANTE: Solo la admin cambia esto a TRUE
+const esAdmin = false; // ← LA ADMIN CAMBIA ESTO A true
+
 // Referencias a elementos del DOM
-const noListScreen = document.getElementById('noListScreen');
-const listScreen = document.getElementById('listScreen');
-const adminPasswordInput = document.getElementById('adminPassword');
-const accessBtn = document.getElementById('accessBtn');
+const closedListScreen = document.getElementById('closedListScreen');
+const openListScreen = document.getElementById('openListScreen');
+const adminSection = document.getElementById('adminSection');
+const openListBtn = document.getElementById('openListBtn');
 const closeListBtn = document.getElementById('closeListBtn');
 const playerNameInput = document.getElementById('playerNameInput');
 const addPlayerBtn = document.getElementById('addPlayerBtn');
@@ -19,24 +22,26 @@ const confirmExitBtn = document.getElementById('confirmExitBtn');
 
 // Variables globales
 let currentPlayerToRemove = null;
-let adminPassword = 'voley2024';
 let players = [];
 let listaActiva = false;
 
-// Verificar estado de la lista al cargar la página
+// Al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
+    // Mostrar sección admin si es admin
+    if (esAdmin) {
+        adminSection.classList.remove('hidden');
+    }
+    
     checkListStatus();
 });
 
-// Función para verificar el estado de la lista
+// Verificar estado de la lista
 function checkListStatus() {
-    // Crear iframe temporal para verificar estado
     const iframe = document.createElement('iframe');
     iframe.style.display = 'none';
     iframe.src = API_URL + '?action=getListStatus&callback=handleStatusData';
     document.body.appendChild(iframe);
     
-    // Remover el iframe después de un tiempo
     setTimeout(() => {
         if (document.body.contains(iframe)) {
             document.body.removeChild(iframe);
@@ -44,37 +49,29 @@ function checkListStatus() {
     }, 5000);
 }
 
-// Esta función será llamada por el callback del estado
+// Manejar estado de la lista
 window.handleStatusData = function(data) {
-    console.log('Estado de lista recibido:', data);
-    
     if (data && !data.error) {
         listaActiva = data.listaActiva;
-        adminPassword = data.passwordAdmin || 'voley2024';
         
         if (listaActiva) {
-            console.log('✅ Lista activa - Mostrando pantalla de lista');
-            showListScreen();
-            // Cargar jugadores después de mostrar la pantalla
+            showOpenListScreen();
             setTimeout(loadPlayersWithIframe, 1000);
         } else {
-            console.log('❌ No hay lista activa - Mostrando pantalla de admin');
-            showNoListScreen();
+            showClosedListScreen();
         }
     } else {
-        console.log('⚠️ Error al cargar estado - Mostrando pantalla de admin');
-        showNoListScreen();
+        showClosedListScreen();
     }
 };
 
-// Función para cargar jugadores usando iframe
+// Cargar jugadores
 function loadPlayersWithIframe() {
     const iframe = document.createElement('iframe');
     iframe.style.display = 'none';
     iframe.src = API_URL + '?action=getPlayers&callback=handlePlayersData';
     document.body.appendChild(iframe);
     
-    // Remover el iframe después de un tiempo
     setTimeout(() => {
         if (document.body.contains(iframe)) {
             document.body.removeChild(iframe);
@@ -82,22 +79,18 @@ function loadPlayersWithIframe() {
     }, 5000);
 }
 
-// Esta función será llamada por el callback de jugadores
 window.handlePlayersData = function(data) {
-    console.log('Jugadores recibidos:', data);
-    
     if (data && data.players) {
         players = data.players;
         renderPlayers(players);
         
-        // Iniciar auto-refresh solo si hay lista activa
         if (listaActiva) {
             startAutoRefresh();
         }
     }
 };
 
-// Función simple para acciones que no necesitan respuesta
+// Funciones de API
 async function simpleAPICall(action, params = {}) {
     try {
         const urlParams = new URLSearchParams({
@@ -105,61 +98,47 @@ async function simpleAPICall(action, params = {}) {
             ...params
         });
         
-        // Usamos una imagen para evitar CORS (truco para requests simples)
         const img = new Image();
         img.src = API_URL + '?' + urlParams.toString();
-        
         return { success: true };
     } catch (error) {
-        console.error('Error in API call:', error);
         return { success: false };
     }
 }
 
-// Mostrar pantalla sin lista
-function showNoListScreen() {
-    noListScreen.classList.remove('hidden');
-    listScreen.classList.add('hidden');
+// Mostrar pantallas
+function showClosedListScreen() {
+    closedListScreen.classList.remove('hidden');
+    openListScreen.classList.add('hidden');
     exitModal.classList.add('hidden');
 }
 
-// Mostrar pantalla con lista activa
-function showListScreen() {
-    noListScreen.classList.add('hidden');
-    listScreen.classList.remove('hidden');
+function showOpenListScreen() {
+    closedListScreen.classList.add('hidden');
+    openListScreen.classList.remove('hidden');
     exitModal.classList.add('hidden');
 }
 
-// Acceso de administrador
-accessBtn.addEventListener('click', async function() {
-    const password = adminPasswordInput.value.trim();
-    
-    if (password === adminPassword) {
-        // Crear lista
+// Botones de admin
+openListBtn.addEventListener('click', async function() {
+    if (confirm('¿Quieres abrir la lista para que todos se apunten?')) {
         const result = await simpleAPICall('createList');
         if (result.success) {
             listaActiva = true;
-            showListScreen();
-            // Limpiar jugadores locales
             players = [];
-            renderPlayers(players);
-            // Dar tiempo para que se cree la lista antes de cargar jugadores
+            showOpenListScreen();
             setTimeout(loadPlayersWithIframe, 2000);
         }
-    } else {
-        alert('❌ Contraseña incorrecta');
-        adminPasswordInput.value = '';
     }
 });
 
-// Cerrar lista (solo admin)
 closeListBtn.addEventListener('click', async function() {
-    if (confirm('¿Estás segura de que quieres cerrar la lista?')) {
+    if (confirm('¿Quieres cerrar la lista?')) {
         const result = await simpleAPICall('closeList');
         if (result.success) {
             listaActiva = false;
             players = [];
-            showNoListScreen();
+            showClosedListScreen();
         }
     }
 });
@@ -167,9 +146,7 @@ closeListBtn.addEventListener('click', async function() {
 // Añadir jugador
 addPlayerBtn.addEventListener('click', addPlayer);
 playerNameInput.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        addPlayer();
-    }
+    if (e.key === 'Enter') addPlayer();
 });
 
 async function addPlayer() {
@@ -180,63 +157,43 @@ async function addPlayer() {
         return;
     }
     
-    if (playerName.length > 30) {
-        alert('El nombre es demasiado largo (máximo 30 caracteres)');
-        return;
-    }
-    
-    // Verificar si ya existe localmente
     if (players.includes(playerName)) {
         alert('⚠️ Este nombre ya está en la lista');
         return;
     }
     
-    // Agregar localmente primero para feedback inmediato
     players.push(playerName);
     renderPlayers(players);
     
-    // Luego enviar al servidor
     const result = await simpleAPICall('addPlayer', { playerName: playerName });
     
     if (result.success) {
         playerNameInput.value = '';
         playerNameInput.focus();
+        refreshImmediately();
     } else {
-        // Revertir si falla
         const index = players.indexOf(playerName);
-        if (index > -1) {
-            players.splice(index, 1);
-            renderPlayers(players);
-        }
+        if (index > -1) players.splice(index, 1);
+        renderPlayers(players);
         alert('Error al agregar jugador');
     }
 }
 
-// Renderizar jugadores en las listas
+// Renderizar jugadores
 function renderPlayers(playersList) {
     attendingList.innerHTML = '';
     waitingList.innerHTML = '';
     
     const MAX_PLAYERS = 12;
-    
-    // Actualizar contador
     const attendingCount = Math.min(playersList.length, MAX_PLAYERS);
     listCount.textContent = `${attendingCount}/${MAX_PLAYERS}`;
     
     playersList.forEach((player, index) => {
         const playerElement = document.createElement('div');
         playerElement.className = `player-item ${index >= MAX_PLAYERS ? 'waiting' : ''}`;
-        playerElement.innerHTML = `
-            <span class="player-number">${index + 1}.</span>
-            ${player}
-        `;
+        playerElement.innerHTML = `<span class="player-number">${index + 1}.</span>${player}`;
+        playerElement.addEventListener('click', () => showExitModal(player));
         
-        // Agregar evento para mostrar modal de salida
-        playerElement.addEventListener('click', () => {
-            showExitModal(player);
-        });
-        
-        // Agregar a lista correspondiente
         if (index < MAX_PLAYERS) {
             attendingList.appendChild(playerElement);
         } else {
@@ -244,64 +201,54 @@ function renderPlayers(playersList) {
         }
     });
     
-    // Mostrar espacios vacíos en lista principal
     for (let i = playersList.length; i < MAX_PLAYERS; i++) {
         const emptySlot = document.createElement('div');
         emptySlot.className = 'player-item';
-        emptySlot.innerHTML = `
-            <span class="player-number">${i + 1}.</span>
-            [VACIO]
-        `;
+        emptySlot.innerHTML = `<span class="player-number">${i + 1}.</span>[VACIO]`;
         emptySlot.style.opacity = '0.6';
         emptySlot.style.cursor = 'default';
         attendingList.appendChild(emptySlot);
     }
 }
 
-// Mostrar modal para salir de lista
+// Modal para salir
 function showExitModal(playerName) {
     currentPlayerToRemove = playerName;
     playerToRemove.textContent = playerName;
     exitModal.classList.remove('hidden');
 }
 
-// Ocultar modal
 function hideExitModal() {
     exitModal.classList.add('hidden');
     currentPlayerToRemove = null;
 }
 
-// Eventos del modal
 cancelExitBtn.addEventListener('click', hideExitModal);
 confirmExitBtn.addEventListener('click', removePlayer);
 
-// Remover jugador de la lista
 async function removePlayer() {
     if (!currentPlayerToRemove) return;
     
-    // Remover localmente primero
     const index = players.indexOf(currentPlayerToRemove);
     if (index > -1) {
         players.splice(index, 1);
         renderPlayers(players);
     }
     
-    // Luego enviar al servidor
     const result = await simpleAPICall('removePlayer', { playerName: currentPlayerToRemove });
     
     if (!result.success) {
-        // Revertir si falla
         players.splice(index, 0, currentPlayerToRemove);
         renderPlayers(players);
         alert('Error al remover jugador');
     }
     
+    refreshImmediately();
     hideExitModal();
 }
 
-// Auto-refrescar la lista cada 2 segundos (solo cuando hay lista activa)
+// Auto-refresh
 function startAutoRefresh() {
-    // Limpiar cualquier intervalo anterior
     if (window.autoRefreshInterval) {
         clearInterval(window.autoRefreshInterval);
     }
@@ -312,95 +259,18 @@ function startAutoRefresh() {
         } else {
             clearInterval(window.autoRefreshInterval);
         }
-    }, 2000); // 2000 milisegundos = 2 segundos
+    }, 2000);
 }
 
-// Función para actualización inmediata después de acciones
 function refreshImmediately() {
     if (listaActiva) {
-        // Cancelar el próximo refresh automático para evitar duplicados
-        if (window.pendingRefresh) {
-            clearTimeout(window.pendingRefresh);
-        }
-        // Programar refresh en 500ms (medio segundo)
+        if (window.pendingRefresh) clearTimeout(window.pendingRefresh);
         window.pendingRefresh = setTimeout(() => {
             loadPlayersWithIframe();
         }, 500);
     }
 }
 
-// En la función addPlayer(), DESPUÉS de agregar:
-async function addPlayer() {
-    const playerName = playerNameInput.value.trim();
-    
-    if (playerName === '') {
-        alert('Por favor escribe un nombre');
-        return;
-    }
-    
-    if (playerName.length > 30) {
-        alert('El nombre es demasiado largo (máximo 30 caracteres)');
-        return;
-    }
-    
-    // Verificar si ya existe localmente
-    if (players.includes(playerName)) {
-        alert('⚠️ Este nombre ya está en la lista');
-        return;
-    }
-    
-    // Agregar localmente primero para feedback inmediato
-    players.push(playerName);
-    renderPlayers(players);
-    
-    // Luego enviar al servidor
-    const result = await simpleAPICall('addPlayer', { playerName: playerName });
-    
-    if (result.success) {
-        playerNameInput.value = '';
-        playerNameInput.focus();
-        // ACTUALIZACIÓN INMEDIATA después de agregar
-        refreshImmediately();
-    } else {
-        // Revertir si falla
-        const index = players.indexOf(playerName);
-        if (index > -1) {
-            players.splice(index, 1);
-            renderPlayers(players);
-        }
-        alert('Error al agregar jugador');
-    }
-}
-
-// En la función removePlayer(), DESPUÉS de remover:
-async function removePlayer() {
-    if (!currentPlayerToRemove) return;
-    
-    // Remover localmente primero
-    const index = players.indexOf(currentPlayerToRemove);
-    if (index > -1) {
-        players.splice(index, 1);
-        renderPlayers(players);
-    }
-    
-    // Luego enviar al servidor
-    const result = await simpleAPICall('removePlayer', { playerName: currentPlayerToRemove });
-    
-    if (!result.success) {
-        // Revertir si falla
-        players.splice(index, 0, currentPlayerToRemove);
-        renderPlayers(players);
-        alert('Error al remover jugador');
-    }
-    
-    // ACTUALIZACIÓN INMEDIATA después de remover
-    refreshImmediately();
-    hideExitModal();
-}
-
-// Cerrar modal haciendo clic fuera
 exitModal.addEventListener('click', function(e) {
-    if (e.target === exitModal) {
-        hideExitModal();
-    }
+    if (e.target === exitModal) hideExitModal();
 });

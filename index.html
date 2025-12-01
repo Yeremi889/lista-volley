@@ -8,26 +8,26 @@
 </head>
 <body>
     <div class="container">
-        <!-- Pantalla sin lista activa -->
-        <div id="noListScreen" class="screen">
+        <!-- Pantalla cuando la lista está CERRADA -->
+        <div id="closedListScreen" class="screen">
             <header>
                 <h1>🏐 Lista Volley 🏐</h1>
                 <p>Mejengas - Primeros 12 jugadores</p>
             </header>
             
             <div class="message">
-                <p>Actualmente no hay lista para mejenguiar...</p>
-                <p>...a menos que sepas lo que va escrito aquí:</p>
+                <p>⏳ La lista está cerrada</p>
+                <p>Esperando a que la administradora abra la lista...</p>
             </div>
             
-            <div class="admin-access">
-                <input type="password" id="adminPassword" placeholder="Contraseña secreta">
-                <button id="accessBtn">ACCEDER 🗝️</button>
+            <!-- Solo la admin ve este botón -->
+            <div id="adminSection" class="admin-section hidden">
+                <button id="openListBtn" class="admin-btn">Abrir Lista 🗝️</button>
             </div>
         </div>
 
-        <!-- Pantalla con lista activa -->
-        <div id="listScreen" class="screen hidden">
+        <!-- Pantalla cuando la lista está ABIERTA -->
+        <div id="openListScreen" class="screen hidden">
             <header>
                 <h1>🏐 Lista Volley 🏐</h1>
                 <div class="list-status">
