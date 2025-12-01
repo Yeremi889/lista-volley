@@ -1,9 +1,9 @@
 // URL de tu Google Apps Script Web App
 const API_URL = 'https://script.google.com/macros/s/AKfycbzzM6_gWScIgfDKSP37d725JJzYRk71s6Pr50W1wIHTJVOL_BX-IFHkkrWyH6FAJ1QIDQ/exec';
 
-// ⚠️ IMPORTANTE: Solo la admin cambia esto a TRUE
-const esAdmin = false; // ← LA ADMIN CAMBIA ESTO A true
-
+//Verificacion de usuario
+const urlParams = new URLSearchParams(window.location.search);
+const esAdmin = urlParams.get('admin') === 'true';
 // Referencias a elementos del DOM
 const closedListScreen = document.getElementById('closedListScreen');
 const openListScreen = document.getElementById('openListScreen');
