@@ -21,25 +21,11 @@ export const ui = {
             if (index < CONFIG.MAX_PLAYERS) {
                 attendingList.appendChild(playerElement);
             } else {
-                playerElement.style.borderLeft = "4px solid #f59e0b";
+                playerElement.style.borderLeft = "4px solid #f59e0b"; 
                 waitingList.appendChild(playerElement);
             }
         });
 
         listCount.innerText = `${Math.min(players.length, CONFIG.MAX_PLAYERS)}/${CONFIG.MAX_PLAYERS}`;
-    },
-
-    toggleLoading(button, isLoading, seconds = 0) {
-        const btnText = button.querySelector('.btn-text');
-        const timerText = document.getElementById('cooldownTimer');
-        if (isLoading) {
-            button.disabled = true;
-            btnText?.classList.add('hidden');
-            if (timerText) { timerText.classList.remove('hidden'); timerText.innerText = `${seconds}s`; }
-        } else {
-            button.disabled = false;
-            btnText?.classList.remove('hidden');
-            timerText?.classList.add('hidden');
-        }
     }
 };

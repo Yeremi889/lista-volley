@@ -1,5 +1,7 @@
 export const CONFIG = {
-    ADMIN_PASSWORD: 'dictadura2025', // Contraseña
-    COOLDOWN_TIME: 60000, // milisegundos de cooldawn ara anotarse
-    MAX_PLAYERS: 12  // Límite de la lista principal
+    SUPABASE_URL: 'https://qbrenmwhxhwunsybohap.supabase.co',
+    SUPABASE_KEY: 'sb_publishable_8YocspSidsOEdNj6bBdAxg_nisCbb2d',
+    
+    ADMIN_PASSWORD: '1234',
+    MAX_PLAYERS: 12
 };

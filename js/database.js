@@ -4,15 +4,22 @@ const { createClient } = supabase;
 const client = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
 
 export const db = {
-    // Leer si la lista está abierta o cerrada
+    // Lee el estado del interruptor 'lista_activa'
     async getListStatus() {
-        const { data } = await client.from('configuracion').select('lista_activa').single();
-        return data ? data.lista_activa : false;
+        try {
+            const { data, error } = await client.from('configuracion').select('lista_activa').eq('id', 1).single();
+            if (error) throw error;
+            return data ? data.lista_activa : false;
+        } catch (e) {
+            console.error("Error al leer estado:", e);
+            return false;
+        }
     },
 
-    // Cambiar el estado (Abrir/Cerrar)
+    // Cambia el estado en la base de datos
     async setListStatus(status) {
-        await client.from('configuracion').update({ lista_activa: status }).eq('id', 1);
+        const { error } = await client.from('configuracion').update({ lista_activa: status }).eq('id', 1);
+        if (error) console.error("Error al actualizar estado:", error);
     },
 
     async fetchPlayers() {
@@ -29,14 +36,15 @@ export const db = {
     },
 
     async clearTable() {
+        // Borra jugadores y apaga el interruptor
         await client.from('jugadores').delete().neq('id', 0);
-        await this.setListStatus(false); // Al borrar todo, cerramos la lista
+        await this.setListStatus(false);
     },
 
-    subscribeToChanges(callback) {
-        client.channel('custom-all-channel')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'jugadores' }, callback)
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'configuracion' }, callback)
+    subscribeToChanges(onPlayersChange, onConfigChange) {
+        client.channel('voley-channel')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'jugadores' }, onPlayersChange)
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'configuracion' }, onConfigChange)
             .subscribe();
     }
 };

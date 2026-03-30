@@ -4,7 +4,7 @@ import { CONFIG } from './config.js';
 
 let playerToRemove = null;
 
-// 1. COMPROBACIÓN INICIAL (Para que el celular entre directo)
+// Verifica si la lista ya está abierta (para el celular)
 async function checkAccess() {
     const isActive = await db.getListStatus();
     if (isActive) {
@@ -15,15 +15,14 @@ async function checkAccess() {
 function showMainScreen() {
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('mainScreen').classList.remove('hidden');
-    document.getElementById('clearListBtn').classList.remove('hidden');
     initApp();
 }
 
-// 2. BOTÓN ABRIR LISTA (Con contraseña)
+// CORRECCIÓN: Botón "Abrir Lista"
 document.getElementById('accessBtn').onclick = async () => {
     const pass = document.getElementById('passwordInput').value;
     if (pass === CONFIG.ADMIN_PASSWORD) {
-        await db.setListStatus(true); // Encendemos el interruptor en la DB
+        await db.setListStatus(true); // Activa el interruptor en la DB
         showMainScreen();
     } else {
         alert("Contraseña incorrecta");
@@ -38,31 +37,26 @@ async function initApp() {
         document.getElementById('exitModal').classList.remove('hidden');
     });
 
-    db.subscribeToChanges(() => initApp());
+    // Suscripción corregida
+    db.subscribeToChanges(
+        () => initApp(), // Cambios en jugadores
+        (payload) => {   // Cambios en configuración
+            if (!payload.new.lista_activa) location.reload(); 
+        }
+    );
 }
 
-// 3. REGISTRO Y COOLDOWN
+// Registro de jugadores
 document.getElementById('addPlayerBtn').onclick = async () => {
     const nameInput = document.getElementById('playerName');
     const name = nameInput.value.trim();
-    if (!name) return;
-
-    await db.addPlayer(name);
-    nameInput.value = '';
-    
-    let timeLeft = 60;
-    ui.toggleLoading(document.getElementById('addPlayerBtn'), true, timeLeft);
-    const timer = setInterval(() => {
-        timeLeft--;
-        ui.toggleLoading(document.getElementById('addPlayerBtn'), true, timeLeft);
-        if (timeLeft <= 0) {
-            clearInterval(timer);
-            ui.toggleLoading(document.getElementById('addPlayerBtn'), false);
-        }
-    }, 1000);
+    if (name) {
+        await db.addPlayer(name);
+        nameInput.value = '';
+    }
 };
 
-// 4. MODALES
+// Modales
 document.getElementById('confirmExitBtn').onclick = async () => {
     if (playerToRemove) {
         await db.removePlayer(playerToRemove.id);
@@ -73,10 +67,9 @@ document.getElementById('cancelExitBtn').onclick = () => document.getElementById
 
 document.getElementById('clearListBtn').onclick = () => document.getElementById('clearListModal').classList.remove('hidden');
 document.getElementById('confirmClearBtn').onclick = async () => {
-    await db.clearTable();
-    location.reload(); // Recargamos para volver al login
+    await db.clearTable(); // Esto también pone lista_activa en false
+    location.reload(); 
 };
 document.getElementById('cancelClearBtn').onclick = () => document.getElementById('clearListModal').classList.add('hidden');
 
-// Ejecutar check al cargar
 checkAccess();
