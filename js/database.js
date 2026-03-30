@@ -10,14 +10,13 @@ export const db = {
             if (error) throw error;
             return data ? data.lista_activa : false;
         } catch (e) {
-            console.error("Error al leer estado:", e);
+            console.error("Error en DB:", e);
             return false;
         }
     },
 
     async setListStatus(status) {
-        const { error } = await client.from('Configuracion').update({ lista_activa: status }).eq('id', 1);
-        if (error) console.error("Error al actualizar estado:", error);
+        await client.from('Configuracion').update({ lista_activa: status }).eq('id', 1);
     },
 
     async fetchPlayers() {
@@ -39,7 +38,7 @@ export const db = {
     },
 
     subscribeToChanges(onPlayersChange, onConfigChange) {
-        client.channel('voley-channel')
+        client.channel('voley-room')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'jugadores' }, onPlayersChange)
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'Configuracion' }, onConfigChange)
             .subscribe();

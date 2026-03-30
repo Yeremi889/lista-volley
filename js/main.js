@@ -3,13 +3,11 @@ import { ui } from './ui.js';
 import { CONFIG } from './config.js';
 
 let playerToRemove = null;
+let isCooldown = false;
 
-// Verifica si la lista ya está abierta (para el celular)
 async function checkAccess() {
     const isActive = await db.getListStatus();
-    if (isActive) {
-        showMainScreen();
-    }
+    if (isActive) showMainScreen();
 }
 
 function showMainScreen() {
@@ -18,11 +16,10 @@ function showMainScreen() {
     initApp();
 }
 
-// CORRECCIÓN: Botón "Abrir Lista"
 document.getElementById('accessBtn').onclick = async () => {
     const pass = document.getElementById('passwordInput').value;
     if (pass === CONFIG.ADMIN_PASSWORD) {
-        await db.setListStatus(true); // Activa el interruptor en la DB
+        await db.setListStatus(true);
         showMainScreen();
     } else {
         alert("Contraseña incorrecta");
@@ -37,39 +34,57 @@ async function initApp() {
         document.getElementById('exitModal').classList.remove('hidden');
     });
 
-    // Suscripción corregida
     db.subscribeToChanges(
-        () => initApp(), // Cambios en jugadores
-        (payload) => {   // Cambios en configuración
-            if (!payload.new.lista_activa) location.reload(); 
+        () => initApp(),
+        (payload) => {
+            if (payload.new && payload.new.lista_activa) showMainScreen();
+            else if (payload.new && !payload.new.lista_activa) location.reload();
         }
     );
 }
 
-// Registro de jugadores
+// Lógica de Registro con COOLDOWN restaurado
 document.getElementById('addPlayerBtn').onclick = async () => {
+    if (isCooldown) return;
+
     const nameInput = document.getElementById('playerName');
     const name = nameInput.value.trim();
-    if (name) {
-        await db.addPlayer(name);
-        nameInput.value = '';
-    }
+    if (!name) return;
+
+    await db.addPlayer(name);
+    nameInput.value = '';
+
+    // Iniciar Cooldown
+    isCooldown = true;
+    let timeLeft = 60;
+    ui.toggleLoading(true, timeLeft);
+
+    const timer = setInterval(() => {
+        timeLeft--;
+        ui.toggleLoading(true, timeLeft);
+        if (timeLeft <= 0) {
+            clearInterval(timer);
+            isCooldown = false;
+            ui.toggleLoading(false);
+        }
+    }, 1000);
 };
 
-// Modales
+// Modales y Limpieza
 document.getElementById('confirmExitBtn').onclick = async () => {
     if (playerToRemove) {
         await db.removePlayer(playerToRemove.id);
         document.getElementById('exitModal').classList.add('hidden');
     }
 };
-document.getElementById('cancelExitBtn').onclick = () => document.getElementById('exitModal').classList.add('hidden');
 
 document.getElementById('clearListBtn').onclick = () => document.getElementById('clearListModal').classList.remove('hidden');
 document.getElementById('confirmClearBtn').onclick = async () => {
-    await db.clearTable(); // Esto también pone lista_activa en false
-    location.reload(); 
+    await db.clearTable();
+    location.reload();
 };
+
+document.getElementById('cancelExitBtn').onclick = () => document.getElementById('exitModal').classList.add('hidden');
 document.getElementById('cancelClearBtn').onclick = () => document.getElementById('clearListModal').classList.add('hidden');
 
 checkAccess();
