@@ -1,49 +1,42 @@
-import { client } from './supabase.js';
+import { CONFIG } from './config.js';
+
+const { createClient } = supabase;
+const client = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
 
 export const db = {
-    // Traer jugadores
-    async getPlayers() {
-        const { data, error } = await client
-            .from('jugadores')
-            .select('*')
-            .order('created_at', { ascending: true });
-        if (error) throw error;
-        return data;
+    // Leer si la lista está abierta o cerrada
+    async getListStatus() {
+        const { data } = await client.from('configuracion').select('lista_activa').single();
+        return data ? data.lista_activa : false;
     },
 
-    // Añadir jugador
+    // Cambiar el estado (Abrir/Cerrar)
+    async setListStatus(status) {
+        await client.from('configuracion').update({ lista_activa: status }).eq('id', 1);
+    },
+
+    async fetchPlayers() {
+        const { data } = await client.from('jugadores').select('*').order('created_at', { ascending: true });
+        return data || [];
+    },
+
     async addPlayer(nombre) {
-        const { data, error } = await client
-            .from('jugadores')
-            .insert([{ nombre }]);
-        if (error) throw error;
-        return data;
+        await client.from('jugadores').insert([{ nombre }]);
     },
 
-    // Quitar un jugador
     async removePlayer(id) {
-        const { error } = await client
-            .from('jugadores')
-            .delete()
-            .eq('id', id);
-        if (error) throw error;
+        await client.from('jugadores').delete().eq('id', id);
     },
 
-    // Nueva Lista
     async clearTable() {
-        // En Supabase, para borrar todo sin filtro, usamos un truco:
-        const { error } = await client
-            .from('jugadores')
-            .delete()
-            .neq('id', 0); 
-        if (error) throw error;
+        await client.from('jugadores').delete().neq('id', 0);
+        await this.setListStatus(false); // Al borrar todo, cerramos la lista
     },
 
-    // REALTIME
     subscribeToChanges(callback) {
-        return client
-            .channel('custom-all-channel')
+        client.channel('custom-all-channel')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'jugadores' }, callback)
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'configuracion' }, callback)
             .subscribe();
     }
 };
