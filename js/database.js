@@ -8,7 +8,7 @@ export const db = {
     async getListStatus() {
         try {
             const { data, error } = await client
-                .from('Configuracion')
+                .from('configuracion')
                 .select('lista_activa')
                 .eq('id', 1)
                 .single();
@@ -23,7 +23,7 @@ export const db = {
     // El Admin abre o cierra la lista
     async setListStatus(status) {
         const { error } = await client
-            .from('Configuracion')
+            .from('configuracion')
             .update({ lista_activa: status })
             .eq('id', 1);
         if (error) console.error("Error al actualizar estado:", error);
@@ -55,7 +55,7 @@ export const db = {
     subscribeToChanges(onPlayersChange, onConfigChange) {
         return client.channel('voley-realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'jugadores' }, onPlayersChange)
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'Configuracion' }, onConfigChange)
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'configuracion' }, onConfigChange)
             .subscribe();
     }
 };
