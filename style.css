@@ -1,362 +1,186 @@
+:root {
+    --primary-blue: #3b5998;
+    --light-blue: #4facfe;
+    --accent: #00f2fe;
+    --danger: #ff4b2b;
+    --white: #ffffff;
+    --glass: rgba(255, 255, 255, 0.15);
+}
+
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    font-family: 'Arial', sans-serif;
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-color: #1a2a6c; /* El azul oscuro de fondo de tus capturas */
+    background: linear-gradient(to bottom, #1e3a8a, #0f172a);
     min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     padding: 20px;
 }
 
 .container {
-    max-width: 400px;
-    margin: 0 auto;
-    position: relative;
-}
-
-.screen {
-    background: white;
-    border-radius: 20px;
-    padding: 25px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    margin-bottom: 20px;
-}
-
-/* Overlay de contraseña */
-.overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
     width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.8);
+    max-width: 400px;
+}
+
+/* Tarjeta Principal (Como se ve en tu captura e74dd6) */
+.glass-card {
+    background-color: #2c4a91; /* Azul intermedio */
+    border-radius: 35px; /* Bordes bien redondeados */
+    padding: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    text-align: center;
+    color: white;
+}
+
+.hidden { display: none !important; }
+
+/* Títulos */
+h1 { font-size: 2.5rem; margin-bottom: 15px; font-weight: bold; }
+h2 { font-size: 1.3rem; margin: 20px 0 15px; }
+
+/* Badge de contador (El óvalo celeste de arriba) */
+.status-badge {
+    background-color: #33ccff;
+    color: white;
+    padding: 5px 20px;
+    border-radius: 20px;
+    display: inline-block;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+/* Inputs (Bordes redondeados como en tus fotos) */
+input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 15px;
+    border-radius: 15px;
+    color: white;
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+input::placeholder { color: rgba(255, 255, 255, 0.5); }
+
+/* Botones Principales (Gris azulado como tu cooldown) */
+#accessBtn, .btn-add {
+    width: 100%;
+    padding: 15px;
+    border-radius: 15px;
+    border: none;
+    background-color: #4a5d85; /* Color del botón de cooldown en tus fotos */
+    color: white;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* Botón Nueva Lista (Para que no sea un cuadro blanco) */
+.btn-admin {
+    /* Fondo translúcido con desenfoque (estilo glass) */
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    
+    /* Texto azul vibrante (var accent) para que resalte */
+    color: var(--accent);
+    
+    /* Forma y espaciado */
+    padding: 10px 22px;
+    border-radius: 50px; /* Forma de píldora muy redondeada */
+    
+    /* Fuente y estilo */
+    font-size: 0.9rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    
+    /* Posicionamiento centrado */
+    display: block;
+    margin: 0 auto 20px;
+    outline: none;
+    
+    /* Efectos de transición suaves */
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Efectos al pasar el mouse (Hover) */
+.btn-admin:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white; /* El texto cambia a blanco */
+    transform: translateY(-3px); /* Se eleva sutilmente */
+    box-shadow: 0 6px 20px rgba(0, 242, 254, 0.3); /* Brillo del color del acento */
+    border-color: var(--accent);
+}
+
+/* Efectos al hacer clic (Active) */
+.btn-admin:active {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 242, 254, 0.2);
+}
+
+/* Lista de Jugadores */
+.player-item {
+    background: rgba(255, 255, 255, 0.1);
+    margin-bottom: 10px;
+    padding: 12px 15px;
+    border-radius: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-left: 4px solid #33ccff;
+}
+
+/* Botón X de salida (Como el de tu captura e7649b) */
+.btn-exit {
+    background: rgba(255, 75, 43, 0.3);
+    border: none;
+    color: white;
+    border-radius: 8px;
+    width: 35px;
+    height: 35px;
+    cursor: pointer;
+    font-size: 1.1rem;
+}
+
+/* MODALES (Eliminan el alert feo de la captura e76822) */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.6);
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 1000;
 }
 
-.overlay-content {
-    background: white;
-    border-radius: 20px;
-    padding: 30px;
-    max-width: 400px;
-    width: 90%;
-    text-align: center;
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
-}
-
-.overlay.hidden {
-    display: none;
-}
-
-.hidden {
-    display: none;
-}
-
-/* Header */
-header {
-    text-align: center;
-    margin-bottom: 25px;
-}
-
-h1 {
-    color: #333;
-    font-size: 28px;
-    margin-bottom: 5px;
-}
-
-header p {
-    color: #666;
-    font-size: 14px;
-}
-
-/* Mensaje de overlay */
-.message {
-    text-align: center;
-    margin: 30px 0;
-    color: #555;
-    line-height: 1.6;
-}
-
-/* Formulario de acceso */
-.access-form {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-input[type="text"],
-input[type="password"] {
-    padding: 15px;
-    border: 2px solid #ddd;
-    border-radius: 10px;
-    font-size: 16px;
-    transition: border-color 0.3s;
-}
-
-input[type="text"]:focus,
-input[type="password"]:focus {
-    outline: none;
-    border-color: #667eea;
-}
-
-button {
-    padding: 15px;
-    border: none;
-    border-radius: 10px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-#accessBtn, #addPlayerBtn {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-}
-
-#accessBtn:hover, #addPlayerBtn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-}
-
-/* Estado de lista */
-.list-status {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-}
-
-#listCount {
-    background: #667eea;
-    color: white;
-    padding: 8px 15px;
-    border-radius: 20px;
-    font-weight: bold;
-}
-
-.admin-btn {
-    background: #ff6b6b;
-    color: white;
-    font-size: 14px;
-    padding: 8px 15px;
-}
-
-.admin-btn:hover {
-    background: #ff5252;
-}
-
-/* Formulario añadir jugador */
-.add-player {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 25px;
-}
-
-.add-player input {
-    flex: 1;
-}
-
-/* Listas de jugadores */
-.list-section {
-    margin-bottom: 25px;
-}
-
-.list-section h2 {
-    color: #333;
-    font-size: 18px;
-    margin-bottom: 15px;
-    padding-bottom: 5px;
-    border-bottom: 2px solid #eee;
-}
-
-.players-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.player-item {
-    background: #f8f9fa;
-    padding: 15px;
-    border-radius: 10px;
-    border-left: 4px solid #667eea;
-    cursor: pointer;
-    transition: all 0.3s;
-    user-select: none;
-}
-
-.player-item:hover {
-    background: #e9ecef;
-    transform: translateX(5px);
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
-}
-
-.player-item.waiting {
-    border-left-color: #ffd43b;
-    background: #fff9e6;
-}
-
-.player-number {
-    font-weight: bold;
-    color: #667eea;
-    margin-right: 10px;
-}
-
-.player-item.waiting .player-number {
-    color: #e6b800;
-}
-
-/* Modal */
-.modal:not(.hidden) {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1001;
-}
-
-.modal.hidden {
-    display: none;
-}
-
 .modal-content {
-    background: white;
+    background: #1e293b;
     padding: 25px;
-    border-radius: 15px;
+    border-radius: 25px;
+    width: 85%;
+    max-width: 320px;
     text-align: center;
-    max-width: 300px;
-    width: 90%;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-}
-
-.modal h3 {
-    color: #333;
-    margin-bottom: 15px;
-    font-size: 20px;
-}
-
-.modal p {
-    color: #666;
-    margin-bottom: 25px;
-    line-height: 1.5;
+    color: white;
 }
 
 .modal-buttons {
     display: flex;
     gap: 10px;
+    margin-top: 20px;
 }
 
-.modal-buttons button {
-    flex: 1;
-    padding: 12px;
-    font-size: 15px;
-    font-weight: 600;
-}
-
-#cancelExitBtn {
-    background: #6c757d;
-    color: white;
-}
-
-#cancelExitBtn:hover {
-    background: #5a6268;
-}
-
-#confirmExitBtn {
-    background: #dc3545;
-    color: white;
-}
-
-#confirmExitBtn:hover {
-    background: #c82333;
-}
-
-/* Estilo para slots vacíos */
-.player-item[style*="opacity: 0.6"] {
-    background: #f0f0f0;
-    border-left-color: #ccc;
-    color: #999;
-    cursor: default;
-}
-
-.player-item[style*="opacity: 0.6"]:hover {
-    background: #f0f0f0;
-    transform: none;
-    box-shadow: none;
-}
-
-.player-item[style*="opacity: 0.6"] .player-number {
-    color: #999;
-}
-
-/* Responsive */
-@media (max-width: 480px) {
-    body {
-        padding: 15px;
-    }
-    
-    .screen, .overlay-content {
-        padding: 20px;
-    }
-    
-    .add-player, .access-form {
-        flex-direction: column;
-    }
-    
-    .modal-content {
-        padding: 20px;
-        max-width: 280px;
-    }
-    
-    .modal-buttons {
-        flex-direction: column;
-    }
-    
-    .modal-buttons button {
-        width: 100%;
-        margin-bottom: 10px;
-    }
-}
-
-#exitModalText {
-    color: #666;
-    margin-bottom: 20px;
-    line-height: 1.5;
-    text-align: center;
-    font-size: 15px;
-}
-
-#exitModalText strong {
-    color: #333;
-    font-weight: 600;
-    font-size: 16px;
-}
-
-#exitModalText small {
-    color: #888;
-    font-size: 0.85em;
-    display: block;
-    margin-top: 8px;
-    font-style: italic;
-}
-
-/* Ajustes para el contador de lista */
-#listCount {
-    font-size: 16px;
-    padding: 10px 20px;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    box-shadow: 0 3px 8px rgba(102, 126, 234, 0.3);
-    min-width: 80px;
-    text-align: center;
-}
+.btn-danger { background: #ff4b2b; color: white; border: none; padding: 12px; border-radius: 12px; flex: 1; cursor: pointer; font-weight: bold; }
+.btn-secondary { background: #475569; color: white; border: none; padding: 12px; border-radius: 12px; flex: 1; cursor: pointer; }

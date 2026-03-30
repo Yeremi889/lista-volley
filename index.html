@@ -3,73 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lista Volley - Mejengas</title>
+    <title>Voley App - La Lista</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div class="container">
-        <!-- contraseña -->
-        <div id="passwordOverlay" class="overlay">
-            <div class="overlay-content">
-                <header>
-                    <h1>🏐 Lista Volley 🏐</h1>
-                    <p>Mejenga solo para maletudos</p>
-                </header>
-                
-                <div class="message">
-                    <p>Actualmente no hay lista, no sean intensos...</p>
-                    <p>...a menos que sepan lo que va escrito aquí:</p>
-                </div>
-                
-                <div class="access-form">
-                    <input type="password" id="passwordInput" placeholder="Contraseña secreta" maxlength="20">
-                    <button id="accessBtn">🗝️ ACCEDER 🗝️</button>
-                </div>
-            </div>
+        <div id="loginScreen" class="glass-card">
+            <h1>🏐 Mejengas 🏐</h1>
+            <p>no hay lista maletas jajajajja suave...</p>
+            <input type="password" id="passwordInput" placeholder="Contraseña secreta">
+            <button id="accessBtn"><span></span> Abrir Lista</button>
         </div>
 
-        <!-- Pantalla con lista -->
-        <div id="listScreen" class="screen hidden">
-            <header>
-                <h1>🏐 Lista 🏐</h1>
-                <div class="list-status">
-                    <span id="listCount">0/12</span>
-                    <button id="clearListBtn" class="admin-btn">Nueva Lista</button>
-                </div>
-            </header>
+        <div id="mainScreen" class="glass-card hidden">
+            <div class="status-badge" id="listCount">0/12</div>
+            <h1>Inician los juegos del hambre</h1>
+            <button id="clearListBtn" class="btn-admin hidden">Nueva Lista</button>
 
-            <div class="add-player">
-                <input type="text" id="playerNameInput" placeholder="Nombre del jugador" maxlength="30">
-                <button id="addPlayerBtn">Enlistar ➕</button>
+            <div class="input-group">
+                <input type="text" id="playerName" placeholder="Tu nombre..." maxlength="20">
+                <button id="addPlayerBtn" class="btn-add">
+                    <span class="btn-text">Anotarme</span>
+                    <span id="cooldownTimer" class="hidden">60s</span>
+                </button>
             </div>
 
-            <div class="lists-container">
-                <div class="list-section">
-                    <h2>✅ Van a jugar ✅</h2>
-                    <div id="attendingList" class="players-list"></div>
-                </div>
-
-                <div class="list-section">
-                    <h2>⏳ Lista de espera ⏳</h2>
-                    <div id="waitingList" class="players-list"></div>
-                </div>
-            </div>
-        </div>
-
-        <!--Funcion de salida -->
-        <div id="exitModal" class="modal hidden">
-            <div class="modal-content">
-                <h3>¿Salir de la lista?</h3>
-                <p id="exitModalText">
-                </p>
-                <div class="modal-buttons">
-                    <button id="cancelExitBtn">No, cancelar</button>
-                    <button id="confirmExitBtn">Sí, salir</button>
-                </div>
+            <div class="list-section">
+                <h2>✅ Titulares ✅</h2>
+                <div id="attendingList" class="player-grid"></div>
+                <h2>⏳🤣 Bancas 🤣⏳</h2>
+                <div id="waitingList" class="player-grid"></div>
             </div>
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <div id="exitModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2>¿Te vas a quitar?</h2>
+            <p id="exitModalText">¿Se fresea es?</p>
+            <div class="modal-buttons">
+                <button id="cancelExitBtn" class="btn-secondary">No, era chistin</button>
+                <button id="confirmExitBtn" class="btn-danger">Sí, soy maleta</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="clearListModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 style="color: var(--danger);">Nueva Lista</h2>
+            <p>¿Borrar toda la lista para otra mejenga?</p>
+            <div class="modal-buttons">
+                <button id="cancelClearBtn" class="btn-secondary">Cancelar</button>
+                <button id="confirmClearBtn" class="btn-danger">Borrar Todo</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
 </body>
 </html>
