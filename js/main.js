@@ -5,6 +5,9 @@ import { CONFIG } from './config.js';
 let playerToRemove = null;
 let isCooldown = false;
 let cooldownInterval = null;
+let firstLoad = true;
+
+const TOTAL_COOLDOWN_SECONDS = CONFIG.COOLDOWN_TIME / 1000;
 
 async function init() {
     const isActive = await db.getListStatus();
@@ -31,17 +34,17 @@ async function checkCooldown() {
     const now = new Date().getTime();
     const secondsPassed = Math.floor((now - lastTime) / 1000);
 
-    if (secondsPassed < 60) {
-        startCooldownTimer(60 - secondsPassed);
+    if (secondsPassed < TOTAL_COOLDOWN_SECONDS) {
+        startCooldownTimer(TOTAL_COOLDOWN_SECONDS - secondsPassed);
     }
 }
 
 function startCooldownTimer(initialSeconds) {
     if (cooldownInterval) clearInterval(cooldownInterval);
-    
+
     isCooldown = true;
     let timeLeft = initialSeconds;
-    ui.toggleLoading(true, timeLeft);
+    ui.toggleLoading(true, timeLeft, TOTAL_COOLDOWN_SECONDS);
 
     cooldownInterval = setInterval(() => {
         timeLeft--;
@@ -50,18 +53,27 @@ function startCooldownTimer(initialSeconds) {
             isCooldown = false;
             ui.toggleLoading(false);
         } else {
-            ui.toggleLoading(true, timeLeft);
+            ui.toggleLoading(true, timeLeft, TOTAL_COOLDOWN_SECONDS);
         }
     }, 1000);
 }
 
 async function loadPlayerData() {
+    if (firstLoad) ui.showInitialLoader();
     const players = await db.fetchPlayers();
     ui.renderPlayers(players, (player) => {
         playerToRemove = player;
         document.getElementById('exitModalText').innerText = `¿Seguro que querés quitar a ${player.nombre}?`;
-        document.getElementById('exitModal').classList.remove('hidden');
+        ui.openModal('exitModal');
     });
+    firstLoad = false;
+}
+
+function shakeLoginCard() {
+    const card = document.getElementById('loginScreen');
+    card.classList.remove('shake');
+    void card.offsetWidth; // reflow para poder re-disparar la animacion
+    card.classList.add('shake');
 }
 
 document.getElementById('accessBtn').onclick = async () => {
@@ -70,7 +82,8 @@ document.getElementById('accessBtn').onclick = async () => {
         await db.setListStatus(true);
         showMainScreen();
     } else {
-        alert("Contraseña incorrecta, maleta.");
+        shakeLoginCard();
+        ui.showToast('Contraseña incorrecta, maleta 😅', 'error');
     }
 };
 
@@ -84,7 +97,7 @@ document.getElementById('addPlayerBtn').onclick = async () => {
     await db.addPlayer(name);
     nameInput.value = '';
 
-    startCooldownTimer(60);
+    startCooldownTimer(TOTAL_COOLDOWN_SECONDS);
 };
 
 db.subscribeToChanges(
@@ -101,18 +114,18 @@ db.subscribeToChanges(
 document.getElementById('confirmExitBtn').onclick = async () => {
     if (playerToRemove) {
         await db.removePlayer(playerToRemove.id);
-        document.getElementById('exitModal').classList.add('hidden');
+        ui.closeModal('exitModal');
     }
 };
 
-document.getElementById('clearListBtn').onclick = () => document.getElementById('clearListModal').classList.remove('hidden');
+document.getElementById('clearListBtn').onclick = () => ui.openModal('clearListModal');
 
 document.getElementById('confirmClearBtn').onclick = async () => {
     await db.clearTable();
     location.reload();
 };
 
-document.getElementById('cancelExitBtn').onclick = () => document.getElementById('exitModal').classList.add('hidden');
-document.getElementById('cancelClearBtn').onclick = () => document.getElementById('clearListModal').classList.add('hidden');
+document.getElementById('cancelExitBtn').onclick = () => ui.closeModal('exitModal');
+document.getElementById('cancelClearBtn').onclick = () => ui.closeModal('clearListModal');
 
 init();
