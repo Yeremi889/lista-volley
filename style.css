@@ -5,6 +5,7 @@
     --ball-yellow: #ffc93c;
     --ball-yellow-dim: rgba(255, 201, 60, 0.25);
     --spike-orange: #ff6b4a;
+    --neon-red: #ff3131;
     --net-blue: #5b7fe3;
     --chalk: #eaf0ff;
     --chalk-dim: rgba(234, 240, 255, 0.62);
@@ -38,7 +39,7 @@ body {
     overflow-x: hidden;
 }
 
-/* ---------- Fondo: cancha difuminada + luces flotantes ---------- */
+/* ---------- Fondo ---------- */
 .bg-scene {
     position: fixed;
     inset: 0;
@@ -98,7 +99,7 @@ body {
 
 .hidden { display: none !important; }
 
-/* ---------- Tipografia ---------- */
+/* ---------- Tipografía ---------- */
 h1 {
     font-family: var(--font-display);
     font-size: clamp(2.1rem, 9vw, 2.75rem);
@@ -156,12 +157,15 @@ h2::before {
     40%, 60% { transform: translateX(8px); }
 }
 
-/* ---------- Balon SVG reutilizable ---------- */
-.v-ball { color: var(--ball-yellow); display: inline-block; }
-.v-ball svg { display: block; width: 100%; height: 100%; }
+.v-ball-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
 
 .serve-wrap { display: flex; justify-content: center; margin-bottom: 6px; }
-.serve-wrap .v-ball { width: 46px; height: 46px; animation: bounceServe 0.85s var(--ease-pop) both; }
+.serve-wrap img { width: 46px; height: 46px; animation: bounceServe 0.85s var(--ease-pop) both; }
 
 @keyframes bounceServe {
     0% { transform: translateY(-46px) scale(0.5) rotate(-90deg); opacity: 0; }
@@ -170,17 +174,12 @@ h2::before {
     100% { transform: translateY(0) scale(1) rotate(360deg); }
 }
 
-@keyframes spinBall {
-    from { transform: translateY(-50%) rotate(0deg); }
-    to { transform: translateY(-50%) rotate(360deg); }
-}
-
 @keyframes spinBallCentered {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
 
-/* ---------- Marcador / status badge ---------- */
+/* ---------- Status badge ---------- */
 .status-badge {
     font-family: var(--font-mono);
     font-weight: 700;
@@ -213,7 +212,6 @@ h2::before {
     50% { opacity: 0.85; transform: scale(1.03); }
 }
 
-/* ---------- Divisor tipo red ---------- */
 .net-divider {
     position: relative;
     height: 0;
@@ -232,7 +230,10 @@ h2::before {
     border-radius: 50%;
     padding: 2px;
     animation: netBob 2.6s ease-in-out infinite;
+    color: var(--ball-yellow);
 }
+
+.net-divider .v-ball svg { display: block; width: 100%; height: 100%; }
 
 @keyframes netBob {
     0%, 100% { transform: translate(-50%, -58%); }
@@ -262,7 +263,7 @@ input:focus {
     background: rgba(255, 255, 255, 0.13);
 }
 
-/* ---------- Botones principales ---------- */
+/* ---------- Botones ---------- */
 #accessBtn, .btn-add {
     width: 100%;
     padding: 16px;
@@ -309,7 +310,6 @@ input:focus {
 
 .btn-add #cooldownTimer { font-family: var(--font-mono); }
 
-/* ---------- Boton admin (Nueva Lista) ---------- */
 .btn-admin {
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid var(--glass-border);
@@ -339,7 +339,6 @@ input:focus {
 
 .btn-admin:active { transform: translateY(-1px); }
 
-/* ---------- Loader inicial de lista ---------- */
 .list-loader {
     display: flex;
     flex-direction: column;
@@ -352,16 +351,17 @@ input:focus {
     letter-spacing: 1px;
 }
 
-.list-loader .v-ball {
+.v-ball-loader {
     width: 32px;
     height: 32px;
     animation: spinBallCentered 0.8s linear infinite;
 }
 
-/* ---------- Jugadores ---------- */
+/* ---------- ESTRUCTURA Y TARJETAS DE JUGADORES ---------- */
 .player-grid { min-height: 4px; }
 
 .player-item {
+    position: relative;
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-left: 3px solid var(--ball-yellow);
@@ -371,22 +371,22 @@ input:focus {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 10px;
-    transition: background 0.2s, transform 0.2s, height 0.3s var(--ease-smooth), margin 0.3s, padding 0.3s, opacity 0.25s;
-    animation: itemIn 0.4s var(--ease-smooth) both;
     overflow: hidden;
+    animation: itemIn 0.4s var(--ease-smooth) both;
 }
 
-.player-item:hover { background: rgba(255, 255, 255, 0.1); transform: translateX(2px); }
-
-.player-item.is-leaving { transform: translateX(12px); opacity: 0; }
+.player-item:hover { background: rgba(255, 255, 255, 0.1); }
 
 @keyframes itemIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
-.player-info { display: flex; align-items: center; min-width: 0; }
+.player-info {
+    display: flex;
+    align-items: center;
+    z-index: 1;
+}
 
 .jersey {
     font-family: var(--font-mono);
@@ -400,68 +400,124 @@ input:focus {
     align-items: center;
     justify-content: center;
     font-size: 0.8rem;
-    margin-right: 10px;
+    margin-right: 12px;
     flex-shrink: 0;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
-/* Nombre revelado por el balon rodando */
-.name-wrap {
-    position: relative;
-    display: inline-block;
-    white-space: nowrap;
-    min-width: 0;
+.name-text { 
+    font-weight: 500; 
+    font-size: 1rem;
 }
 
-.name-text { font-weight: 500; }
-
-.name-cover {
+/* Cortina que cubre/revela el nombre */
+.card-cover {
     position: absolute;
-    top: -3px;
-    bottom: -3px;
-    left: 0;
-    width: 100%;
-    background: #1c3260;
-    border-radius: 4px;
-    animation: uncoverName 0.55s var(--ease-smooth) forwards;
-    animation-delay: inherit;
+    inset: 0;
+    background: #152a52;
+    z-index: 2;
+    animation: uncoverCard 1.0s var(--ease-smooth) forwards;
 }
 
-.name-cover .v-ball {
-    width: 20px;
-    height: 20px;
+@keyframes uncoverCard {
+    from { left: 0%; }
+    to { left: 100%; }
+}
+
+/* EL ÚNICO BALÓN ROJO */
+.single-ball-btn {
     position: absolute;
-    right: -10px;
-    top: 50%;
-    transform: translateY(-50%);
-    animation: spinBall 0.5s linear infinite;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
-}
-
-@keyframes uncoverName {
-    from { width: 100%; }
-    to { width: 0%; }
-}
-
-.btn-exit {
-    background: rgba(255, 107, 74, 0.16);
-    border: 1px solid rgba(255, 107, 74, 0.25);
-    color: var(--spike-orange);
-    border-radius: 10px;
-    width: 34px;
-    height: 34px;
+    z-index: 3;
+    width: 32px;
+    height: 32px;
+    background: none;
+    border: none;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
-    transition: transform 0.2s, background 0.2s;
+    filter: drop-shadow(0 0 6px var(--neon-red));
+    animation: moveBallAcross 1.0s var(--ease-smooth) forwards;
 }
 
-.btn-exit:hover { background: rgba(255, 107, 74, 0.28); transform: rotate(90deg); }
-.btn-exit svg { width: 15px; height: 15px; }
+.single-ball-btn .delete-ball {
+    filter: grayscale(100%) brightness(50%) sepia(100%) hue-rotate(-50deg) saturate(1000%);
+    animation: spinBallImage 1.0s linear;
+}
 
-/* ---------- Modales ---------- */
+.single-ball-btn:hover { 
+    transform: scale(1.15) rotate(15deg); 
+}
+
+@keyframes moveBallAcross {
+    from { left: 14px; }
+    to { left: calc(100% - 44px); }
+}
+
+@keyframes spinBallImage {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* ========================================================
+   ANIMACIÓN DE SALIDA (REVERSA) - TOTALMENTE VISIBLE Y PAUSADA
+   ======================================================== */
+
+/* 1. La cortina azul vuelve a tapar el nombre de derecha a izquierda */
+.player-item.is-leaving .card-cover {
+    animation: coverCardReverse 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+}
+
+/* 2. El balón regresa rodando de derecha a izquierda */
+.player-item.is-leaving .single-ball-btn {
+    animation: moveBallBack 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+}
+
+/* 3. La imagen del balón gira en sentido antihorario mientras regresa */
+.player-item.is-leaving .single-ball-btn .delete-ball {
+    animation: spinBallReverse 1.2s linear !important;
+}
+
+/* 4. ÚNICAMENTE al llegar el balón a la izquierda (después de 1.2s), se colapsa y desvanece la caja */
+.player-item.is-leaving {
+    animation: fadeOutItem 0.35s 1.2s forwards !important;
+}
+
+@keyframes coverCardReverse {
+    0% { left: 100%; }
+    100% { left: 0%; }
+}
+
+@keyframes moveBallBack {
+    0% { left: calc(100% - 44px); }
+    100% { left: 14px; }
+}
+
+@keyframes spinBallReverse {
+    0% { transform: rotate(360deg); }
+    100% { transform: rotate(0deg); }
+}
+
+@keyframes fadeOutItem {
+    0% { 
+        opacity: 1; 
+        transform: scale(1);
+        max-height: 60px;
+        margin-bottom: 10px;
+        padding: 12px 14px;
+    }
+    100% { 
+        opacity: 0; 
+        transform: scale(0.9);
+        max-height: 0;
+        margin-bottom: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        border-width: 0;
+    }
+}
+
+/* ---------- Modales y Toasts ---------- */
 .modal-overlay {
     position: fixed;
     inset: 0;
@@ -508,9 +564,7 @@ input:focus {
 .btn-danger { background: var(--spike-orange); color: white; }
 .btn-secondary { background: #37507e; color: white; }
 .btn-danger:hover, .btn-secondary:hover { filter: brightness(1.1); transform: translateY(-1px); }
-.btn-danger:active, .btn-secondary:active { transform: translateY(0) scale(0.96); }
 
-/* ---------- Toasts ---------- */
 #toastContainer {
     position: fixed;
     bottom: 22px;
@@ -550,17 +604,7 @@ input:focus {
     to { opacity: 0; transform: translateY(8px) scale(0.95); }
 }
 
-/* ---------- Accesibilidad ---------- */
 button:focus-visible, input:focus-visible {
     outline: 2px solid var(--ball-yellow);
     outline-offset: 2px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-        animation-duration: 0.001ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.001ms !important;
-        scroll-behavior: auto !important;
-    }
 }

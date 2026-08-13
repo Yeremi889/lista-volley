@@ -1,40 +1,31 @@
 import { CONFIG } from './config.js';
 
-const BALL_SVG = `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="20" cy="20" r="17.5" fill="currentColor" stroke="#0d1730" stroke-width="1.4"/>
-    <path d="M20 2.5 C 11 9, 11 31, 20 37.5" fill="none" stroke="#0d1730" stroke-width="1.4"/>
-    <path d="M20 2.5 C 29 9, 29 31, 20 37.5" fill="none" stroke="#0d1730" stroke-width="1.4"/>
-    <path d="M3 17 C 11 12, 29 12, 37 17" fill="none" stroke="#0d1730" stroke-width="1.4"/>
-    <path d="M3 23 C 11 28, 29 28, 37 23" fill="none" stroke="#0d1730" stroke-width="1.4"/>
-</svg>`;
+// Único balón rojo
+const RED_BALL_IMG = `<img src="balon-voley.png" alt="Balón" class="v-ball-img delete-ball">`;
 
-const X_SVG = `<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M4 4L16 16M16 4L4 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-</svg>`;
-
-// Estado persistente entre renders: id -> { el, section }
 const renderedItems = new Map();
 let hasLoadedOnce = false;
 
 function createPlayerElement(player, jerseyNum, onRemoveClick, staggerIndex) {
     const el = document.createElement('div');
     el.className = 'player-item';
-    el.style.animationDelay = `${Math.min(staggerIndex * 0.06, 0.5)}s`;
+    el.style.animationDelay = `${Math.min(staggerIndex * 0.08, 0.6)}s`;
 
     el.innerHTML = `
         <div class="player-info">
             <span class="jersey">${jerseyNum}</span>
-            <span class="name-wrap">
-                <span class="name-text"></span>
-                <span class="name-cover" style="animation-delay:${Math.min(staggerIndex * 0.06, 0.5) + 0.15}s">
-                    <span class="v-ball">${BALL_SVG}</span>
-                </span>
-            </span>
+            <span class="name-text"></span>
         </div>
-        <button class="btn-exit" type="button" aria-label="Quitar jugador">${X_SVG}</button>
+        
+        <!-- Cortina que oculta/revela el nombre -->
+        <div class="card-cover" style="animation-delay:${Math.min(staggerIndex * 0.08, 0.6) + 0.1}s"></div>
+
+        <!-- Único balón que ruede y actúe de botón -->
+        <button class="btn-exit single-ball-btn" type="button" aria-label="Quitar jugador" style="animation-delay:${Math.min(staggerIndex * 0.08, 0.6) + 0.1}s">
+            ${RED_BALL_IMG}
+        </button>
     `;
 
-    // El nombre se inserta como texto (evita inyectar HTML del jugador)
     el.querySelector('.name-text').textContent = player.nombre;
     el.querySelector('.btn-exit').onclick = () => onRemoveClick(player);
 
@@ -50,25 +41,32 @@ function updateJerseyNumber(el, jerseyNum) {
 
 function animateOut(el) {
     if (!el || !el.parentElement) return;
-    el.style.height = el.offsetHeight + 'px';
-    el.style.overflow = 'hidden';
-    // Forzar reflow antes de animar
-    void el.offsetHeight;
-    requestAnimationFrame(() => {
-        el.classList.add('is-leaving');
-        el.style.height = '0px';
-        el.style.marginBottom = '0px';
-        el.style.paddingTop = '0px';
-        el.style.paddingBottom = '0px';
-    });
+
+    // Reseteamos retardos inline para que la salida comience de inmediato al hacer clic
+    const cover = el.querySelector('.card-cover');
+    const btn = el.querySelector('.single-ball-btn');
+    if (cover) cover.style.animationDelay = '0s';
+    if (btn) btn.style.animationDelay = '0s';
+
+    // Disparamos la clase de salida en reversa
+    el.classList.add('is-leaving');
+
     let removed = false;
     const cleanup = () => {
         if (removed) return;
         removed = true;
         el.remove();
     };
-    el.addEventListener('transitionend', cleanup, { once: true });
-    setTimeout(cleanup, 500); // por si el transitionend no dispara
+
+    // Esperamos exactamente a que la animación de desaparición de la caja termine
+    el.addEventListener('animationend', (e) => {
+        if (e.animationName === 'fadeOutItem') {
+            cleanup();
+        }
+    });
+
+    // Timeout de seguridad en caso de fallo de evento
+    setTimeout(cleanup, 1600);
 }
 
 export const ui = {
@@ -78,7 +76,7 @@ export const ui = {
         const loader = document.createElement('div');
         loader.id = 'initialLoader';
         loader.className = 'list-loader';
-        loader.innerHTML = `<span class="v-ball">${BALL_SVG}</span><span>Cargando jugadores...</span>`;
+        loader.innerHTML = `<span class="v-ball-loader">${RED_BALL_IMG}</span><span>Cargando jugadores...</span>`;
         attendingList.appendChild(loader);
     },
 
@@ -92,7 +90,6 @@ export const ui = {
 
         const currentIds = new Set(players.map(p => p.id));
 
-        // Quitar (con animacion) a quienes ya no estan
         for (const [id, entry] of renderedItems) {
             if (!currentIds.has(id)) {
                 animateOut(entry.el);
@@ -118,7 +115,6 @@ export const ui = {
             }
         });
 
-        // Reordenar cada seccion segun el orden real de jugadores
         players.slice(0, CONFIG.MAX_PLAYERS).forEach(p => {
             const entry = renderedItems.get(p.id);
             if (entry) attendingList.appendChild(entry.el);
@@ -173,7 +169,7 @@ export const ui = {
         const modal = document.getElementById(id);
         if (!modal) return;
         modal.classList.remove('hidden');
-        void modal.offsetHeight; // reflow para que la transicion se dispare
+        void modal.offsetHeight;
         modal.classList.add('show');
     },
 
