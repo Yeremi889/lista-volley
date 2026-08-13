@@ -3,8 +3,16 @@ import { CONFIG } from './config.js';
 const { createClient } = supabase;
 const client = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
 
+export function getDeviceId() {
+    let deviceId = localStorage.getItem('voley_device_id');
+    if (!deviceId) {
+        deviceId = 'dev_' + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
+        localStorage.setItem('voley_device_id', deviceId);
+    }
+    return deviceId;
+}
+
 export const db = {
-    // Lee si la lista está abierta (crucial para que el celular no pida clave)
     async getListStatus() {
         try {
             const { data, error } = await client
@@ -20,7 +28,6 @@ export const db = {
         }
     },
 
-    // El Admin abre o cierra la lista
     async setListStatus(status) {
         const { error } = await client
             .from('configuracion')
@@ -37,8 +44,22 @@ export const db = {
         return data || [];
     },
 
+    async getLastPlayerTimeByDevice() {
+        const deviceId = getDeviceId();
+        const { data, error } = await client
+            .from('jugadores')
+            .select('created_at')
+            .eq('device_id', deviceId)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (error || !data || data.length === 0) return null;
+        return data[0].created_at;
+    },
+
     async addPlayer(nombre) {
-        await client.from('jugadores').insert([{ nombre }]);
+        const deviceId = getDeviceId();
+        await client.from('jugadores').insert([{ nombre, device_id: deviceId }]);
     },
 
     async removePlayer(id) {
@@ -46,12 +67,10 @@ export const db = {
     },
 
     async clearTable() {
-        // Borra a todos y cierra la lista (vuelve a pedir contraseña a todos)
         await client.from('jugadores').delete().neq('id', 0);
         await this.setListStatus(false);
     },
 
-    // Configuración del Tiempo Real
     subscribeToChanges(onPlayersChange, onConfigChange) {
         return client.channel('voley-realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'jugadores' }, onPlayersChange)
