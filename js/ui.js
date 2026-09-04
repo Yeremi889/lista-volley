@@ -1,6 +1,5 @@
 import { CONFIG } from './config.js';
 
-// Único balón rojo
 const RED_BALL_IMG = `<img src="balon-voley.png" alt="Balón" class="v-ball-img delete-ball">`;
 
 const renderedItems = new Map();
@@ -16,11 +15,7 @@ function createPlayerElement(player, jerseyNum, onRemoveClick, staggerIndex) {
             <span class="jersey">${jerseyNum}</span>
             <span class="name-text"></span>
         </div>
-        
-        <!-- Cortina que oculta/revela el nombre -->
         <div class="card-cover" style="animation-delay:${Math.min(staggerIndex * 0.08, 0.6) + 0.1}s"></div>
-
-        <!-- Único balón que ruede y actúe de botón -->
         <button class="btn-exit single-ball-btn" type="button" aria-label="Quitar jugador" style="animation-delay:${Math.min(staggerIndex * 0.08, 0.6) + 0.1}s">
             ${RED_BALL_IMG}
         </button>
@@ -42,13 +37,11 @@ function updateJerseyNumber(el, jerseyNum) {
 function animateOut(el) {
     if (!el || !el.parentElement) return;
 
-    // Reseteamos retardos inline para que la salida comience de inmediato al hacer clic
     const cover = el.querySelector('.card-cover');
     const btn = el.querySelector('.single-ball-btn');
     if (cover) cover.style.animationDelay = '0s';
     if (btn) btn.style.animationDelay = '0s';
 
-    // Disparamos la clase de salida en reversa
     el.classList.add('is-leaving');
 
     let removed = false;
@@ -58,14 +51,12 @@ function animateOut(el) {
         el.remove();
     };
 
-    // Esperamos exactamente a que la animación de desaparición de la caja termine
     el.addEventListener('animationend', (e) => {
         if (e.animationName === 'fadeOutItem') {
             cleanup();
         }
     });
 
-    // Timeout de seguridad en caso de fallo de evento
     setTimeout(cleanup, 1600);
 }
 
@@ -129,6 +120,21 @@ export const ui = {
         listCount.classList.toggle('full', total >= CONFIG.MAX_PLAYERS);
 
         hasLoadedOnce = true;
+    },
+
+    renderHistory(historyItems) {
+        const historyList = document.getElementById('historyList');
+        if (!historyList) return;
+
+        historyList.innerHTML = '';
+        historyItems.forEach(item => {
+            const li = document.createElement('li');
+            li.className = `history-item ${item.tipo || 'info'}`;
+            
+            const time = new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            li.innerHTML = `<span class="time">[${time}]</span> <span class="msg">${item.mensaje}</span>`;
+            historyList.appendChild(li);
+        });
     },
 
     toggleLoading(isLoading, secondsLeft = 0, totalSeconds = CONFIG.COOLDOWN_TIME / 1000) {

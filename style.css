@@ -608,3 +608,43 @@ button:focus-visible, input:focus-visible {
     outline: 2px solid var(--ball-yellow);
     outline-offset: 2px;
 }
+
+/* ---------- Historial / VAR ---------- */
+.history-section {
+    margin-top: 30px;
+    text-align: left;
+}
+
+.history-list {
+    list-style: none;
+    padding: 0;
+    max-height: 180px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    padding: 10px;
+    font-size: 0.85rem;
+}
+
+.history-item {
+    padding: 6px 8px;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.history-item:last-child {
+    border-bottom: none;
+}
+
+.history-item .time {
+    font-family: var(--font-mono);
+    color: var(--chalk-dim);
+    font-size: 0.75rem;
+}
+
+.history-item.info .msg { color: var(--chalk); }
+.history-item.warning .msg { color: var(--ball-yellow); }
+.history-item.danger .msg { color: var(--spike-orange); font-weight: bold; }

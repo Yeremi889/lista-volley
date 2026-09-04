@@ -1,4 +1,4 @@
-import { db } from './database.js';
+import { db, getDeviceId } from './database.js';
 import { ui } from './ui.js';
 import { CONFIG } from './config.js';
 
@@ -23,6 +23,7 @@ function showMainScreen() {
     document.getElementById('mainScreen').classList.remove('hidden');
     document.getElementById('clearListBtn').classList.remove('hidden');
     loadPlayerData();
+    loadHistoryData();
     checkCooldown();
 }
 
@@ -69,10 +70,15 @@ async function loadPlayerData() {
     firstLoad = false;
 }
 
+async function loadHistoryData() {
+    const history = await db.fetchHistory();
+    ui.renderHistory(history);
+}
+
 function shakeLoginCard() {
     const card = document.getElementById('loginScreen');
     card.classList.remove('shake');
-    void card.offsetWidth; // reflow para poder re-disparar la animacion
+    void card.offsetWidth;
     card.classList.add('shake');
 }
 
@@ -100,6 +106,28 @@ document.getElementById('addPlayerBtn').onclick = async () => {
     startCooldownTimer(TOTAL_COOLDOWN_SECONDS);
 };
 
+// Validación de identidad y registro al intentar eliminar a un jugador
+document.getElementById('confirmExitBtn').onclick = async () => {
+    if (!playerToRemove) return;
+
+    const myDeviceId = getDeviceId();
+
+    // 1. Si es el mismo usuario, se elimina
+    if (playerToRemove.device_id === myDeviceId) {
+        await db.removePlayer(playerToRemove.id);
+        await db.addHistory(`${playerToRemove.nombre} se salió de la lista.`, 'warning');
+        ui.showToast('Te has quitado de la lista.', 'default');
+    } else {
+        // 2. Si es otra persona, bloquea la acción y registra el intento
+        const myName = await db.getMyLastName() || "Alguien";
+        await db.addHistory(`🚨 ${myName} intentó eliminar a ${playerToRemove.nombre}`, 'danger');
+        ui.showToast(`¡No podés quitar a ${playerToRemove.nombre}! Quedó registrado en el historial 🕵️‍♂️`, 'error');
+    }
+
+    ui.closeModal('exitModal');
+    playerToRemove = null;
+};
+
 db.subscribeToChanges(
     () => loadPlayerData(),
     (payload) => {
@@ -108,15 +136,9 @@ db.subscribeToChanges(
         } else if (payload.new && !payload.new.lista_activa) {
             location.reload();
         }
-    }
+    },
+    () => loadHistoryData()
 );
-
-document.getElementById('confirmExitBtn').onclick = async () => {
-    if (playerToRemove) {
-        await db.removePlayer(playerToRemove.id);
-        ui.closeModal('exitModal');
-    }
-};
 
 document.getElementById('clearListBtn').onclick = () => ui.openModal('clearListModal');
 
