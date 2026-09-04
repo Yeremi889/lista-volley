@@ -120,8 +120,8 @@ document.getElementById('confirmExitBtn').onclick = async () => {
     } else {
         // 2. Si es otra persona, bloquea la acción y registra el intento
         const myName = await db.getMyLastName() || "Alguien";
-        await db.addHistory(`🚨 ${myName} intentó eliminar a ${playerToRemove.nombre}`, 'danger');
-        ui.showToast(`¡No podés quitar a ${playerToRemove.nombre}! Quedó registrado en el historial 🕵️‍♂️`, 'error');
+        await db.addHistory(` ${myName} intentó eliminar a ${playerToRemove.nombre}`);
+        ui.showToast(`¡Ni lo piense RATA`, 'error');
     }
 
     ui.closeModal('exitModal');
@@ -149,5 +149,9 @@ document.getElementById('confirmClearBtn').onclick = async () => {
 
 document.getElementById('cancelExitBtn').onclick = () => ui.closeModal('exitModal');
 document.getElementById('cancelClearBtn').onclick = () => ui.closeModal('clearListModal');
+
+// Abrir y Cerrar Modal de VAR con el botón ?
+document.getElementById('varHelpBtn').onclick = () => ui.openModal('varModal');
+document.getElementById('closeVarBtn').onclick = () => ui.closeModal('varModal');
 
 init();
