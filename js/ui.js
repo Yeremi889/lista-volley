@@ -60,6 +60,26 @@ function animateOut(el) {
     setTimeout(cleanup, 1600);
 }
 
+// Mover un elemento en la página reinicia su animación, así que solo se
+// mueven los que están fuera de lugar.
+function placeInOrder(section, players) {
+    let cursor = section.firstElementChild;
+
+    players.forEach(player => {
+        const { el } = renderedItems.get(player.id);
+
+        while (cursor && cursor.classList.contains('is-leaving')) {
+            cursor = cursor.nextElementSibling;
+        }
+
+        if (cursor === el) {
+            cursor = cursor.nextElementSibling;
+        } else {
+            section.insertBefore(el, cursor);
+        }
+    });
+}
+
 export const ui = {
     showInitialLoader() {
         const attendingList = document.getElementById('attendingList');
@@ -105,14 +125,8 @@ export const ui = {
             }
         });
 
-        players.slice(0, CONFIG.MAX_PLAYERS).forEach(p => {
-            const entry = renderedItems.get(p.id);
-            if (entry) attendingList.appendChild(entry.el);
-        });
-        players.slice(CONFIG.MAX_PLAYERS).forEach(p => {
-            const entry = renderedItems.get(p.id);
-            if (entry) waitingList.appendChild(entry.el);
-        });
+        placeInOrder(attendingList, players.slice(0, CONFIG.MAX_PLAYERS));
+        placeInOrder(waitingList, players.slice(CONFIG.MAX_PLAYERS));
 
         const total = Math.min(players.length, CONFIG.MAX_PLAYERS);
         listCount.innerText = `${total}/${CONFIG.MAX_PLAYERS}`;

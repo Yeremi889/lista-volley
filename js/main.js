@@ -17,6 +17,8 @@ let isRefreshing = false;
 let refreshQueued = false;
 let refreshTimer = null;
 let connectionLost = false;
+let renderedPlayersKey = null;
+let renderedHistoryKey = null;
 
 function stopCooldown() {
     clearInterval(cooldownInterval);
@@ -85,8 +87,18 @@ async function refresh() {
         const { isActive, players, history } = await db.fetchState();
 
         applyListStatus(isActive);
-        ui.renderPlayers(players, askToRemove);
-        ui.renderHistory(history);
+
+        const playersKey = JSON.stringify(players);
+        if (playersKey !== renderedPlayersKey) {
+            renderedPlayersKey = playersKey;
+            ui.renderPlayers(players, askToRemove);
+        }
+
+        const historyKey = JSON.stringify(history);
+        if (historyKey !== renderedHistoryKey) {
+            renderedHistoryKey = historyKey;
+            ui.renderHistory(history);
+        }
 
         firstLoad = false;
         connectionLost = false;
