@@ -1,157 +1,265 @@
-import { db, getDeviceId } from './database.js';
+import { db } from './database.js';
 import { ui } from './ui.js';
 import { CONFIG } from './config.js';
 
-let playerToRemove = null;
-let isCooldown = false;
-let cooldownInterval = null;
-let firstLoad = true;
-
 const TOTAL_COOLDOWN_SECONDS = CONFIG.COOLDOWN_TIME / 1000;
+const BACKUP_REFRESH_MS = 20000;
+const CHANGE_DEBOUNCE_MS = 150;
 
-async function init() {
-    const isActive = await db.getListStatus();
-    if (isActive) {
-        showMainScreen();
-    } else {
-        document.getElementById('loginScreen').classList.remove('hidden');
-    }
-}
+const el = (id) => document.getElementById(id);
 
-function showMainScreen() {
-    document.getElementById('loginScreen').classList.add('hidden');
-    document.getElementById('mainScreen').classList.remove('hidden');
-    document.getElementById('clearListBtn').classList.remove('hidden');
-    loadPlayerData();
-    loadHistoryData();
-    checkCooldown();
-}
+let playerToRemove = null;
+let cooldownInterval = null;
+let listIsActive = null;
+let firstLoad = true;
+let isAdding = false;
+let isRefreshing = false;
+let refreshQueued = false;
+let refreshTimer = null;
+let connectionLost = false;
 
-async function checkCooldown() {
-    const lastRegistrationTime = await db.getLastPlayerTimeByDevice();
-    if (!lastRegistrationTime) return;
-
-    const lastTime = new Date(lastRegistrationTime).getTime();
-    const now = new Date().getTime();
-    const secondsPassed = Math.floor((now - lastTime) / 1000);
-
-    if (secondsPassed < TOTAL_COOLDOWN_SECONDS) {
-        startCooldownTimer(TOTAL_COOLDOWN_SECONDS - secondsPassed);
-    }
+function stopCooldown() {
+    clearInterval(cooldownInterval);
+    cooldownInterval = null;
+    ui.toggleLoading(false);
 }
 
 function startCooldownTimer(initialSeconds) {
-    if (cooldownInterval) clearInterval(cooldownInterval);
+    clearInterval(cooldownInterval);
 
-    isCooldown = true;
     let timeLeft = initialSeconds;
     ui.toggleLoading(true, timeLeft, TOTAL_COOLDOWN_SECONDS);
 
     cooldownInterval = setInterval(() => {
         timeLeft--;
         if (timeLeft <= 0) {
-            clearInterval(cooldownInterval);
-            isCooldown = false;
-            ui.toggleLoading(false);
+            stopCooldown();
         } else {
             ui.toggleLoading(true, timeLeft, TOTAL_COOLDOWN_SECONDS);
         }
     }, 1000);
 }
 
-async function loadPlayerData() {
-    if (firstLoad) ui.showInitialLoader();
-    const players = await db.fetchPlayers();
-    ui.renderPlayers(players, (player) => {
-        playerToRemove = player;
-        document.getElementById('exitModalText').innerText = `¿Seguro que querés quitar a ${player.nombre}?`;
-        ui.openModal('exitModal');
-    });
-    firstLoad = false;
+async function syncDeviceState() {
+    try {
+        const [seconds, isAdmin] = await Promise.all([db.getCooldown(), db.isAdmin()]);
+        if (seconds > 0) startCooldownTimer(seconds);
+        el('clearListBtn').classList.toggle('hidden', !isAdmin);
+    } catch (error) {
+        console.error('Error al leer el dispositivo:', error);
+    }
 }
 
-async function loadHistoryData() {
-    const history = await db.fetchHistory();
-    ui.renderHistory(history);
+function applyListStatus(isActive) {
+    if (isActive === listIsActive) return;
+    listIsActive = isActive;
+
+    el('loginScreen').classList.toggle('hidden', isActive);
+    el('mainScreen').classList.toggle('hidden', !isActive);
+
+    if (isActive) {
+        syncDeviceState();
+    } else {
+        stopCooldown();
+        ['exitModal', 'clearListModal'].forEach(ui.closeModal);
+    }
+}
+
+function askToRemove(player) {
+    playerToRemove = player;
+    el('exitModalText').innerText = `¿Seguro que querés quitar a ${player.nombre}?`;
+    ui.openModal('exitModal');
+}
+
+// Los cambios seguidos se agrupan en una consulta, y una respuesta vieja
+// nunca puede pisar a una más nueva.
+async function refresh() {
+    if (isRefreshing) {
+        refreshQueued = true;
+        return;
+    }
+
+    isRefreshing = true;
+    try {
+        if (firstLoad) ui.showInitialLoader();
+        const { isActive, players, history } = await db.fetchState();
+
+        applyListStatus(isActive);
+        ui.renderPlayers(players, askToRemove);
+        ui.renderHistory(history);
+
+        firstLoad = false;
+        connectionLost = false;
+    } catch (error) {
+        console.error('Error al actualizar:', error);
+        if (!connectionLost) ui.showToast('Sin conexión, reintentando...', 'error');
+        connectionLost = true;
+    } finally {
+        isRefreshing = false;
+        if (refreshQueued) {
+            refreshQueued = false;
+            refresh();
+        }
+    }
+}
+
+function scheduleRefresh() {
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(refresh, CHANGE_DEBOUNCE_MS);
 }
 
 function shakeLoginCard() {
-    const card = document.getElementById('loginScreen');
+    const card = el('loginScreen');
     card.classList.remove('shake');
     void card.offsetWidth;
     card.classList.add('shake');
 }
 
-document.getElementById('accessBtn').onclick = async () => {
-    const pass = document.getElementById('passwordInput').value;
-    if (pass === CONFIG.ADMIN_PASSWORD) {
-        await db.setListStatus(true);
-        showMainScreen();
-    } else {
-        shakeLoginCard();
-        ui.showToast('Contraseña incorrecta, maleta 😅', 'error');
-    }
-};
+async function openList() {
+    const button = el('accessBtn');
+    if (button.disabled) return;
 
-document.getElementById('addPlayerBtn').onclick = async () => {
-    if (isCooldown) return;
-
-    const nameInput = document.getElementById('playerName');
-    const name = nameInput.value.trim();
-    if (!name) return;
-
-    await db.addPlayer(name);
-    nameInput.value = '';
-
-    startCooldownTimer(TOTAL_COOLDOWN_SECONDS);
-};
-
-// Validación de identidad y registro al intentar eliminar a un jugador
-document.getElementById('confirmExitBtn').onclick = async () => {
-    if (!playerToRemove) return;
-
-    const myDeviceId = getDeviceId();
-
-    // 1. Si es el mismo usuario, se elimina
-    if (playerToRemove.device_id === myDeviceId) {
-        await db.removePlayer(playerToRemove.id);
-        await db.addHistory(`${playerToRemove.nombre} se salió de la lista.`, 'warning');
-        ui.showToast('Te has quitado de la lista.', 'default');
-    } else {
-        // 2. Si es otra persona, bloquea la acción y registra el intento
-        const myName = await db.getMyLastName() || "Alguien";
-        await db.addHistory(` ${myName} intentó eliminar a ${playerToRemove.nombre}`);
-        ui.showToast(`¡Ni lo piense RATA`, 'error');
-    }
-
-    ui.closeModal('exitModal');
-    playerToRemove = null;
-};
-
-db.subscribeToChanges(
-    () => loadPlayerData(),
-    (payload) => {
-        if (payload.new && payload.new.lista_activa) {
-            showMainScreen();
-        } else if (payload.new && !payload.new.lista_activa) {
-            location.reload();
+    button.disabled = true;
+    try {
+        if (await db.openList(el('passwordInput').value)) {
+            el('passwordInput').value = '';
+            el('clearListBtn').classList.remove('hidden');
+            await refresh();
+        } else {
+            shakeLoginCard();
+            ui.showToast('Contraseña incorrecta, maleta 😅', 'error');
         }
-    },
-    () => loadHistoryData()
-);
+    } catch (error) {
+        console.error('Error al abrir la lista:', error);
+        ui.showToast('No se pudo abrir la lista. Intentá otra vez.', 'error');
+    } finally {
+        button.disabled = false;
+    }
+}
 
-document.getElementById('clearListBtn').onclick = () => ui.openModal('clearListModal');
-
-document.getElementById('confirmClearBtn').onclick = async () => {
-    await db.clearTable();
-    location.reload();
+const ADD_ERRORS = {
+    nombre_invalido: 'Escribí un nombre válido.',
+    nombre_repetido: 'Ese nombre ya está en la lista.',
+    lista_cerrada: 'La lista está cerrada.',
+    sin_sesion: 'Recargá la página e intentá otra vez.'
 };
 
-document.getElementById('cancelExitBtn').onclick = () => ui.closeModal('exitModal');
-document.getElementById('cancelClearBtn').onclick = () => ui.closeModal('clearListModal');
+async function addPlayer() {
+    const nameInput = el('playerName');
+    const name = nameInput.value.trim();
+    if (isAdding || cooldownInterval || !name) return;
 
-// Abrir y Cerrar Modal de VAR con el botón ?
-document.getElementById('varHelpBtn').onclick = () => ui.openModal('varModal');
-document.getElementById('closeVarBtn').onclick = () => ui.closeModal('varModal');
+    isAdding = true;
+    el('addPlayerBtn').disabled = true;
+    try {
+        const result = await db.addPlayer(name);
+
+        if (result.ok) {
+            nameInput.value = '';
+            startCooldownTimer(result.segundos);
+            await refresh();
+        } else if (result.error === 'espera') {
+            startCooldownTimer(result.segundos);
+        } else {
+            ui.showToast(ADD_ERRORS[result.error] || 'No se pudo anotar.', 'error');
+        }
+    } catch (error) {
+        console.error('Error al anotar:', error);
+        ui.showToast('No se pudo anotar. Tu nombre sigue escrito, intentá otra vez.', 'error');
+    } finally {
+        isAdding = false;
+        if (!cooldownInterval) el('addPlayerBtn').disabled = false;
+    }
+}
+
+async function confirmRemove() {
+    if (!playerToRemove) return;
+    const player = playerToRemove;
+    playerToRemove = null;
+    ui.closeModal('exitModal');
+
+    try {
+        const result = await db.removePlayer(player.id);
+
+        if (result.ok) {
+            ui.showToast('Te has quitado de la lista.', 'default');
+        } else if (result.error === 'no_autorizado') {
+            ui.showToast('¡Ni lo piense RATA', 'error');
+        } else if (result.error !== 'no_existe') {
+            ui.showToast('No se pudo quitar. Recargá la página.', 'error');
+        }
+        await refresh();
+    } catch (error) {
+        console.error('Error al quitar:', error);
+        ui.showToast('No se pudo quitar. Intentá otra vez.', 'error');
+    }
+}
+
+async function confirmNewList() {
+    ui.closeModal('clearListModal');
+
+    try {
+        if (await db.newList()) {
+            await refresh();
+        } else {
+            ui.showToast('Solo quien abrió la lista puede crear otra.', 'error');
+        }
+    } catch (error) {
+        console.error('Error al crear la lista:', error);
+        ui.showToast('No se pudo crear la lista. Intentá otra vez.', 'error');
+    }
+}
+
+function submitOnEnter(input, action) {
+    input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') action();
+    });
+}
+
+function bindEvents() {
+    el('accessBtn').onclick = openList;
+    el('addPlayerBtn').onclick = addPlayer;
+    el('confirmExitBtn').onclick = confirmRemove;
+    el('confirmClearBtn').onclick = confirmNewList;
+    el('clearListBtn').onclick = () => ui.openModal('clearListModal');
+    el('cancelExitBtn').onclick = () => ui.closeModal('exitModal');
+    el('cancelClearBtn').onclick = () => ui.closeModal('clearListModal');
+    el('varHelpBtn').onclick = () => ui.openModal('varModal');
+    el('closeVarBtn').onclick = () => ui.closeModal('varModal');
+
+    submitOnEnter(el('passwordInput'), openList);
+    submitOnEnter(el('playerName'), addPlayer);
+}
+
+function keepListUpdated() {
+    db.subscribeToChanges(scheduleRefresh, scheduleRefresh);
+
+    // Al volver a la app, el celular pudo haber cortado la conexión en vivo.
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') scheduleRefresh();
+    });
+    window.addEventListener('focus', scheduleRefresh);
+    window.addEventListener('online', scheduleRefresh);
+    window.addEventListener('pageshow', scheduleRefresh);
+
+    setInterval(() => {
+        if (document.visibilityState === 'visible') refresh();
+    }, BACKUP_REFRESH_MS);
+}
+
+async function init() {
+    bindEvents();
+
+    try {
+        await db.ensureSession();
+    } catch (error) {
+        console.error('Error de sesión:', error);
+        ui.showToast('No se pudo conectar. Recargá la página.', 'error');
+        return;
+    }
+
+    keepListUpdated();
+    await refresh();
+}
 
 init();

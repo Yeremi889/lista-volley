@@ -3,7 +3,7 @@ import { CONFIG } from './config.js';
 const RED_BALL_IMG = `<img src="balon-voley.png" alt="Balón" class="v-ball-img delete-ball">`;
 
 const renderedItems = new Map();
-let hasLoadedOnce = false;
+const modalTimers = new Map();
 
 function createPlayerElement(player, jerseyNum, onRemoveClick, staggerIndex) {
     const el = document.createElement('div');
@@ -96,13 +96,12 @@ export const ui = {
 
             if (!entry) {
                 const el = createPlayerElement(player, jerseyNum, onRemoveClick, newCount);
-                entry = { el, section: targetSection };
+                entry = { el };
                 renderedItems.set(player.id, entry);
                 targetSection.appendChild(el);
                 newCount++;
             } else {
                 updateJerseyNumber(entry.el, jerseyNum);
-                entry.section = targetSection;
             }
         });
 
@@ -118,8 +117,6 @@ export const ui = {
         const total = Math.min(players.length, CONFIG.MAX_PLAYERS);
         listCount.innerText = `${total}/${CONFIG.MAX_PLAYERS}`;
         listCount.classList.toggle('full', total >= CONFIG.MAX_PLAYERS);
-
-        hasLoadedOnce = true;
     },
 
     renderHistory(historyItems) {
@@ -129,10 +126,11 @@ export const ui = {
         historyList.innerHTML = '';
         historyItems.forEach(item => {
             const li = document.createElement('li');
-            li.className = `history-item ${item.tipo || 'info'}`;
-            
+            li.className = `history-item ${item.tipo === 'warning' ? 'warning' : 'info'}`;
+
             const time = new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            li.innerHTML = `<span class="time">[${time}]</span> <span class="msg">${item.mensaje}</span>`;
+            li.innerHTML = `<span class="time">[${time}]</span> <span class="msg"></span>`;
+            li.querySelector('.msg').textContent = item.mensaje;
             historyList.appendChild(li);
         });
     },
@@ -174,6 +172,7 @@ export const ui = {
     openModal(id) {
         const modal = document.getElementById(id);
         if (!modal) return;
+        clearTimeout(modalTimers.get(id));
         modal.classList.remove('hidden');
         void modal.offsetHeight;
         modal.classList.add('show');
@@ -183,6 +182,6 @@ export const ui = {
         const modal = document.getElementById(id);
         if (!modal) return;
         modal.classList.remove('show');
-        setTimeout(() => modal.classList.add('hidden'), 320);
+        modalTimers.set(id, setTimeout(() => modal.classList.add('hidden'), 320));
     }
 };
